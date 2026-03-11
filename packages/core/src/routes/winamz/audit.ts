@@ -6,6 +6,7 @@
  */
 
 import { generateStandardId } from '@logto/shared';
+import { sql } from '@silverhand/slonik';
 import { z } from 'zod';
 
 import koaGuard from '#src/middleware/koa-guard.js';
@@ -25,6 +26,30 @@ const auditLogResponseGuard = z.object({
   createdAt: z.string(),
 });
 
+type AuditRow = {
+  id: string;
+  eventType: string;
+  orgId: string | null;
+  agentId: string | null;
+  userId: string | null;
+  actorId: string | null;
+  resource: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: Date;
+};
+
+const auditSelectCols = sql`
+  id,
+  event_type as "eventType",
+  org_id as "orgId",
+  agent_id as "agentId",
+  user_id as "userId",
+  actor_id as "actorId",
+  resource,
+  metadata,
+  created_at as "createdAt"
+`;
+
 export default function winamzAuditRoutes<T extends ManagementApiRouter>(
   ...[router, { queries }]: RouterInitArgs<T>
 ) {
@@ -43,70 +68,44 @@ export default function winamzAuditRoutes<T extends ManagementApiRouter>(
         from: z.string().optional(),
         to: z.string().optional(),
       }),
-      response: z.object({
-        total: z.number(),
-        data: auditLogResponseGuard.array(),
-      }),
+      response: auditLogResponseGuard.array(),
       status: [200],
     }),
     async (ctx, next) => {
       const { limit, offset } = ctx.pagination;
       const { agentId, userId, orgId, eventType, from, to } = ctx.guard.query;
 
-      const conditions: string[] = [];
-      const params: unknown[] = [];
+      const conditions = [
+        agentId && sql`agent_id = ${agentId}`,
+        userId && sql`user_id = ${userId}`,
+        orgId && sql`org_id = ${orgId}`,
+        eventType && sql`event_type = ${eventType}`,
+        from && sql`created_at >= ${from}`,
+        to && sql`created_at <= ${to}`,
+      ].filter(Boolean);
 
-      if (agentId) {
-        params.push(agentId);
-        conditions.push(`agent_id = $${params.length}`);
-      }
-      if (userId) {
-        params.push(userId);
-        conditions.push(`user_id = $${params.length}`);
-      }
-      if (orgId) {
-        params.push(orgId);
-        conditions.push(`org_id = $${params.length}`);
-      }
-      if (eventType) {
-        params.push(eventType);
-        conditions.push(`event_type = $${params.length}`);
-      }
-      if (from) {
-        params.push(new Date(from));
-        conditions.push(`created_at >= $${params.length}`);
-      }
-      if (to) {
-        params.push(new Date(to));
-        conditions.push(`created_at <= $${params.length}`);
-      }
+      const whereClause =
+        conditions.length > 0
+          ? sql`WHERE ${sql.join(conditions, sql` AND `)}`
+          : sql``;
 
-      const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+      const [{ count }, rows] = await Promise.all([
+        pool.one<{ count: string }>(
+          sql`SELECT COUNT(*) as count FROM winamz_audit_logs ${whereClause}`
+        ),
+        pool.any<AuditRow>(
+          sql`SELECT ${auditSelectCols}
+              FROM winamz_audit_logs ${whereClause}
+              ORDER BY created_at DESC
+              LIMIT ${limit} OFFSET ${offset}`
+        ),
+      ]);
 
-      const countResult = await pool.one<{ count: string }>(
-        `SELECT COUNT(*) as count FROM winamz_audit_logs ${where}`,
-        params
-      );
-
-      params.push(limit, offset);
-      const rows = await pool.any(
-        `SELECT id, event_type as "eventType", org_id as "orgId", agent_id as "agentId",
-                user_id as "userId", actor_id as "actorId", resource, metadata,
-                created_at as "createdAt"
-         FROM winamz_audit_logs ${where}
-         ORDER BY created_at DESC
-         LIMIT $${params.length - 1} OFFSET $${params.length}`,
-        params
-      );
-
-      ctx.body = {
-        total: Number(countResult.count),
-        data: rows.map((row) => ({
-          ...row,
-          createdAt: new Date(row.createdAt as string).toISOString(),
-        })),
-      };
-
+      ctx.pagination.totalCount = Number(count);
+      ctx.body = rows.map((row) => ({
+        ...row,
+        createdAt: new Date(row.createdAt).toISOString(),
+      }));
       return next();
     }
   );
@@ -131,31 +130,20 @@ export default function winamzAuditRoutes<T extends ManagementApiRouter>(
       const { eventType, orgId, agentId, userId, actorId, resource, metadata } = ctx.guard.body;
       const id = generateStandardId();
 
-      const row = await pool.one(
-        `INSERT INTO winamz_audit_logs
-           (id, event_type, org_id, agent_id, user_id, actor_id, resource, metadata)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-         RETURNING id, event_type as "eventType", org_id as "orgId", agent_id as "agentId",
-                   user_id as "userId", actor_id as "actorId", resource, metadata,
-                   created_at as "createdAt"`,
-        [
-          id,
-          eventType,
-          orgId ?? null,
-          agentId ?? null,
-          userId ?? null,
-          actorId ?? null,
-          resource ?? null,
-          metadata ? JSON.stringify(metadata) : null,
-        ]
+      const row = await pool.one<AuditRow>(
+        sql`INSERT INTO winamz_audit_logs
+              (id, event_type, org_id, agent_id, user_id, actor_id, resource, metadata)
+            VALUES (
+              ${id}, ${eventType},
+              ${orgId ?? null}, ${agentId ?? null}, ${userId ?? null},
+              ${actorId ?? null}, ${resource ?? null},
+              ${metadata ? JSON.stringify(metadata) : null}
+            )
+            RETURNING ${auditSelectCols}`
       );
 
       ctx.status = 201;
-      ctx.body = {
-        ...row,
-        createdAt: new Date(row.createdAt as string).toISOString(),
-      };
-
+      ctx.body = { ...row, createdAt: new Date(row.createdAt).toISOString() };
       return next();
     }
   );

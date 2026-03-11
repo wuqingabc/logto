@@ -7,6 +7,7 @@
  */
 
 import { generateStandardId } from '@logto/shared';
+import { sql } from '@silverhand/slonik';
 import { z } from 'zod';
 
 import koaGuard from '#src/middleware/koa-guard.js';
@@ -26,6 +27,37 @@ const grantResponseGuard = z.object({
   revokedBy: z.string().nullable().optional(),
 });
 
+type GrantRow = {
+  id: string;
+  agentId: string;
+  userId: string;
+  orgId: string;
+  grantedScopes: string[];
+  grantedAt: Date;
+  expiresAt: Date | null;
+  revokedAt: Date | null;
+  revokedBy: string | null;
+};
+
+const toResponse = (row: GrantRow) => ({
+  ...row,
+  grantedAt: new Date(row.grantedAt).toISOString(),
+  expiresAt: row.expiresAt ? new Date(row.expiresAt).toISOString() : null,
+  revokedAt: row.revokedAt ? new Date(row.revokedAt).toISOString() : null,
+});
+
+const grantSelectCols = sql`
+  id,
+  agent_id as "agentId",
+  user_id as "userId",
+  org_id as "orgId",
+  granted_scopes as "grantedScopes",
+  granted_at as "grantedAt",
+  expires_at as "expiresAt",
+  revoked_at as "revokedAt",
+  revoked_by as "revokedBy"
+`;
+
 export default function winamzGrantRoutes<T extends ManagementApiRouter>(
   ...[router, { queries }]: RouterInitArgs<T>
 ) {
@@ -42,62 +74,42 @@ export default function winamzGrantRoutes<T extends ManagementApiRouter>(
         orgId: z.string().optional(),
         active: z.enum(['true', 'false']).optional(),
       }),
-      response: z.object({ total: z.number(), items: grantResponseGuard.array() }),
+      response: grantResponseGuard.array(),
       status: [200],
     }),
     async (ctx, next) => {
       const { limit, offset } = ctx.pagination;
       const { agentId, userId, orgId, active } = ctx.guard.query;
 
-      const conditions: string[] = [];
-      const params: unknown[] = [];
+      const conditions = [
+        agentId && sql`agent_id = ${agentId}`,
+        userId && sql`user_id = ${userId}`,
+        orgId && sql`org_id = ${orgId}`,
+        active === 'true' &&
+          sql`revoked_at IS NULL AND (expires_at IS NULL OR expires_at > NOW())`,
+        active === 'false' &&
+          sql`(revoked_at IS NOT NULL OR (expires_at IS NOT NULL AND expires_at <= NOW()))`,
+      ].filter(Boolean);
 
-      if (agentId) {
-        params.push(agentId);
-        conditions.push(`agent_id = $${params.length}`);
-      }
-      if (userId) {
-        params.push(userId);
-        conditions.push(`user_id = $${params.length}`);
-      }
-      if (orgId) {
-        params.push(orgId);
-        conditions.push(`org_id = $${params.length}`);
-      }
-      if (active === 'true') {
-        conditions.push(`revoked_at IS NULL AND (expires_at IS NULL OR expires_at > NOW())`);
-      } else if (active === 'false') {
-        conditions.push(`(revoked_at IS NOT NULL OR (expires_at IS NOT NULL AND expires_at <= NOW()))`);
-      }
+      const whereClause =
+        conditions.length > 0
+          ? sql`WHERE ${sql.join(conditions, sql` AND `)}`
+          : sql``;
 
-      const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+      const [{ count }, rows] = await Promise.all([
+        pool.one<{ count: string }>(
+          sql`SELECT COUNT(*) as count FROM winamz_agent_grants ${whereClause}`
+        ),
+        pool.any<GrantRow>(
+          sql`SELECT ${grantSelectCols}
+              FROM winamz_agent_grants ${whereClause}
+              ORDER BY granted_at DESC
+              LIMIT ${limit} OFFSET ${offset}`
+        ),
+      ]);
 
-      const countResult = await pool.one<{ count: string }>(
-        `SELECT COUNT(*) as count FROM winamz_agent_grants ${where}`,
-        params
-      );
-
-      params.push(limit, offset);
-      const rows = await pool.any(
-        `SELECT id, agent_id as "agentId", user_id as "userId", org_id as "orgId",
-                granted_scopes as "grantedScopes", granted_at as "grantedAt",
-                expires_at as "expiresAt", revoked_at as "revokedAt", revoked_by as "revokedBy"
-         FROM winamz_agent_grants ${where}
-         ORDER BY granted_at DESC
-         LIMIT $${params.length - 1} OFFSET $${params.length}`,
-        params
-      );
-
-      ctx.body = {
-        total: Number(countResult.count),
-        items: rows.map((row) => ({
-          ...row,
-          grantedAt: new Date(row.grantedAt as string).toISOString(),
-          expiresAt: row.expiresAt ? new Date(row.expiresAt as string).toISOString() : null,
-          revokedAt: row.revokedAt ? new Date(row.revokedAt as string).toISOString() : null,
-        })),
-      };
-
+      ctx.pagination.totalCount = Number(count);
+      ctx.body = rows.map(toResponse);
       return next();
     }
   );
@@ -113,12 +125,8 @@ export default function winamzGrantRoutes<T extends ManagementApiRouter>(
     async (ctx, next) => {
       const { id } = ctx.guard.params;
 
-      const row = await pool.maybeOne(
-        `SELECT id, agent_id as "agentId", user_id as "userId", org_id as "orgId",
-                granted_scopes as "grantedScopes", granted_at as "grantedAt",
-                expires_at as "expiresAt", revoked_at as "revokedAt", revoked_by as "revokedBy"
-         FROM winamz_agent_grants WHERE id = $1`,
-        [id]
+      const row = await pool.maybeOne<GrantRow>(
+        sql`SELECT ${grantSelectCols} FROM winamz_agent_grants WHERE id = ${id}`
       );
 
       if (!row) {
@@ -126,13 +134,7 @@ export default function winamzGrantRoutes<T extends ManagementApiRouter>(
         return next();
       }
 
-      ctx.body = {
-        ...row,
-        grantedAt: new Date(row.grantedAt as string).toISOString(),
-        expiresAt: row.expiresAt ? new Date(row.expiresAt as string).toISOString() : null,
-        revokedAt: row.revokedAt ? new Date(row.revokedAt as string).toISOString() : null,
-      };
-
+      ctx.body = toResponse(row);
       return next();
     }
   );
@@ -155,32 +157,25 @@ export default function winamzGrantRoutes<T extends ManagementApiRouter>(
       const { agentId, userId, orgId, grantedScopes, expiresAt } = ctx.guard.body;
       const id = generateStandardId();
 
-      const row = await pool.one(
-        `INSERT INTO winamz_agent_grants
-           (id, agent_id, user_id, org_id, granted_scopes, expires_at)
-         VALUES ($1, $2, $3, $4, $5, $6)
-         RETURNING id, agent_id as "agentId", user_id as "userId", org_id as "orgId",
-                   granted_scopes as "grantedScopes", granted_at as "grantedAt",
-                   expires_at as "expiresAt", revoked_at as "revokedAt", revoked_by as "revokedBy"`,
-        [id, agentId, userId, orgId, grantedScopes, expiresAt ?? null]
+      const row = await pool.one<GrantRow>(
+        sql`INSERT INTO winamz_agent_grants
+              (id, agent_id, user_id, org_id, granted_scopes, expires_at)
+            VALUES (
+              ${id}, ${agentId}, ${userId}, ${orgId},
+              ${sql.array(grantedScopes, 'text')},
+              ${expiresAt ?? null}
+            )
+            RETURNING ${grantSelectCols}`
       );
 
-      // Audit log
       await pool.query(
-        `INSERT INTO winamz_audit_logs (id, event_type, agent_id, user_id, org_id, created_at)
-         VALUES ($1, 'grant_created', $2, $3, $4, NOW())`,
-        [generateStandardId(), agentId, userId, orgId]
+        sql`INSERT INTO winamz_audit_logs
+              (id, event_type, agent_id, user_id, org_id, created_at)
+            VALUES (${generateStandardId()}, 'grant_created', ${agentId}, ${userId}, ${orgId}, NOW())`
       );
 
       ctx.status = 201;
-      ctx.body = {
-        ...row,
-        grantedAt: new Date(row.grantedAt as string).toISOString(),
-        expiresAt: row.expiresAt ? new Date(row.expiresAt as string).toISOString() : null,
-        revokedAt: null,
-        revokedBy: null,
-      };
-
+      ctx.body = toResponse(row);
       return next();
     }
   );
@@ -206,36 +201,31 @@ export default function winamzGrantRoutes<T extends ManagementApiRouter>(
       const { revokedBy, reason } = ctx.guard.body;
       const now = new Date();
 
-      const row = await pool.maybeOne(
-        `UPDATE winamz_agent_grants
-         SET revoked_at = $2, revoked_by = $3
-         WHERE id = $1 AND revoked_at IS NULL
-         RETURNING id, agent_id as "agentId", user_id as "userId", org_id as "orgId"`,
-        [id, now, revokedBy ?? null]
+      const row = await pool.maybeOne<{ id: string; agentId: string; userId: string; orgId: string }>(
+        sql`UPDATE winamz_agent_grants
+            SET revoked_at = ${now.toISOString()}, revoked_by = ${revokedBy ?? null}
+            WHERE id = ${id} AND revoked_at IS NULL
+            RETURNING id, agent_id as "agentId", user_id as "userId", org_id as "orgId"`
       );
 
       if (!row) {
-        const existing = await pool.maybeOne(
-          `SELECT id, revoked_at FROM winamz_agent_grants WHERE id = $1`,
-          [id]
+        const existing = await pool.maybeOne<{ id: string }>(
+          sql`SELECT id FROM winamz_agent_grants WHERE id = ${id}`
         );
         ctx.status = existing ? 422 : 404;
         return next();
       }
 
-      // Audit log
       await pool.query(
-        `INSERT INTO winamz_audit_logs
-           (id, event_type, agent_id, user_id, org_id, actor_id, metadata, created_at)
-         VALUES ($1, 'grant_revoked', $2, $3, $4, $5, $6, NOW())`,
-        [
-          generateStandardId(),
-          row.agentId,
-          row.userId,
-          row.orgId,
-          revokedBy ?? null,
-          reason ? JSON.stringify({ reason }) : null,
-        ]
+        sql`INSERT INTO winamz_audit_logs
+              (id, event_type, agent_id, user_id, org_id, actor_id, metadata, created_at)
+            VALUES (
+              ${generateStandardId()}, 'grant_revoked',
+              ${row.agentId}, ${row.userId}, ${row.orgId},
+              ${revokedBy ?? null},
+              ${reason ? JSON.stringify({ reason }) : null},
+              NOW()
+            )`
       );
 
       ctx.body = {
@@ -243,7 +233,6 @@ export default function winamzGrantRoutes<T extends ManagementApiRouter>(
         revokedAt: now.toISOString(),
         ...(reason && { reason }),
       };
-
       return next();
     }
   );
@@ -264,33 +253,30 @@ export default function winamzGrantRoutes<T extends ManagementApiRouter>(
       const { userId, revokedBy, reason } = ctx.guard.body;
       const now = new Date();
 
-      const rows = await pool.any(
-        `UPDATE winamz_agent_grants
-         SET revoked_at = $2, revoked_by = $3
-         WHERE user_id = $1 AND revoked_at IS NULL
-         RETURNING id, agent_id as "agentId", org_id as "orgId"`,
-        [userId, now, revokedBy ?? null]
+      const rows = await pool.any<{ id: string; agentId: string; orgId: string }>(
+        sql`UPDATE winamz_agent_grants
+            SET revoked_at = ${now.toISOString()}, revoked_by = ${revokedBy ?? null}
+            WHERE user_id = ${userId} AND revoked_at IS NULL
+            RETURNING id, agent_id as "agentId", org_id as "orgId"`
       );
 
-      // Audit logs for each revoked grant
-      for (const row of rows) {
-        await pool.query(
-          `INSERT INTO winamz_audit_logs
-             (id, event_type, agent_id, user_id, org_id, actor_id, metadata, created_at)
-           VALUES ($1, 'grant_revoked', $2, $3, $4, $5, $6, NOW())`,
-          [
-            generateStandardId(),
-            row.agentId,
-            userId,
-            row.orgId,
-            revokedBy ?? null,
-            reason ? JSON.stringify({ reason, batch: true }) : JSON.stringify({ batch: true }),
-          ]
-        );
-      }
+      await Promise.all(
+        rows.map((row) =>
+          pool.query(
+            sql`INSERT INTO winamz_audit_logs
+                  (id, event_type, agent_id, user_id, org_id, actor_id, metadata, created_at)
+                VALUES (
+                  ${generateStandardId()}, 'grant_revoked',
+                  ${row.agentId}, ${userId}, ${row.orgId},
+                  ${revokedBy ?? null},
+                  ${JSON.stringify({ reason: reason ?? null, batch: true })},
+                  NOW()
+                )`
+          )
+        )
+      );
 
       ctx.body = { revokedCount: rows.length };
-
       return next();
     }
   );

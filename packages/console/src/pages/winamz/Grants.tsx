@@ -8,7 +8,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import Button from '@/ds-components/Button';
-import DynamicT from '@/ds-components/DynamicT';
 import Search from '@/ds-components/Search';
 import Table from '@/ds-components/Table';
 import Tag from '@/ds-components/Tag';
@@ -45,11 +44,11 @@ function WinamzGrants() {
         page_size: String(pageSize),
         active: showRevoked ? 'false' : 'true',
       });
-      const response = await api
-        .get(`winamz/grants?${params.toString()}`)
-        .json<{ total: number; items: Grant[] }>();
-      setGrants(response.items);
-      setTotal(response.total);
+      const response = await api.get(`api/winamz/grants?${params.toString()}`);
+      const items = await response.json<Grant[]>();
+      const totalCount = Number(response.headers.get('Total-Number') ?? '0');
+      setGrants(items);
+      setTotal(totalCount);
     } finally {
       setIsLoading(false);
     }
@@ -63,7 +62,7 @@ function WinamzGrants() {
     async (grantId: string) => {
       const reason = window.prompt('Reason for revocation (optional):') ?? undefined;
       await api
-        .post(`winamz/grants/${grantId}/revoke`, { json: { reason } })
+        .post(`api/winamz/grants/${grantId}/revoke`, { json: { reason } })
         .json();
       void fetchGrants();
     },
@@ -172,7 +171,7 @@ function WinamzGrants() {
           pageSize,
           onChange: setPage,
         }}
-        placeholder={<DynamicT forKey="general.no_results_found" />}
+        placeholder="No grants found"
       />
     </div>
   );

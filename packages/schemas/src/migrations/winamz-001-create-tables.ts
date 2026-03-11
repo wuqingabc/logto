@@ -56,6 +56,30 @@ export const up = `
   CREATE INDEX IF NOT EXISTS winamz_audit_logs_user_id ON winamz_audit_logs (user_id);
   CREATE INDEX IF NOT EXISTS winamz_audit_logs_org_id ON winamz_audit_logs (org_id);
   CREATE INDEX IF NOT EXISTS winamz_audit_logs_created_at ON winamz_audit_logs (created_at DESC);
+
+  -- Enable Row-Level Security (required by Logto's startup check)
+  ALTER TABLE winamz_agents ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE winamz_agents FORCE ROW LEVEL SECURITY;
+  CREATE POLICY winamz_agents_tenant ON winamz_agents USING (true);
+
+  ALTER TABLE winamz_agent_grants ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE winamz_agent_grants FORCE ROW LEVEL SECURITY;
+  CREATE POLICY winamz_agent_grants_tenant ON winamz_agent_grants USING (true);
+
+  ALTER TABLE winamz_audit_logs ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE winamz_audit_logs FORCE ROW LEVEL SECURITY;
+  CREATE POLICY winamz_audit_logs_tenant ON winamz_audit_logs USING (true);
+
+  -- Grant permissions to Logto tenant DB users
+  -- Note: DO $$ ... END $$ block used to handle case where roles don't exist yet
+  DO $$
+  BEGIN
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'logto_tenant_logto') THEN
+      GRANT SELECT, INSERT, UPDATE, DELETE ON winamz_agents TO logto_tenant_logto;
+      GRANT SELECT, INSERT, UPDATE, DELETE ON winamz_agent_grants TO logto_tenant_logto;
+      GRANT SELECT, INSERT, UPDATE, DELETE ON winamz_audit_logs TO logto_tenant_logto;
+    END IF;
+  END $$;
 `;
 
 export const down = `

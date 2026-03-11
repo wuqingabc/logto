@@ -9,7 +9,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import Button from '@/ds-components/Button';
-import DynamicT from '@/ds-components/DynamicT';
 import Search from '@/ds-components/Search';
 import Table from '@/ds-components/Table';
 import Tag from '@/ds-components/Tag';
@@ -51,11 +50,11 @@ function WinamzAgents() {
         page: String(page),
         page_size: String(pageSize),
       });
-      const response = await api
-        .get(`winamz/agents?${params.toString()}`)
-        .json<{ total: number; items: Agent[] }>();
-      setAgents(response.items);
-      setTotal(response.total);
+      const response = await api.get(`api/winamz/agents?${params.toString()}`);
+      const items = await response.json<Agent[]>();
+      const totalCount = Number(response.headers.get('Total-Number') ?? '0');
+      setAgents(items);
+      setTotal(totalCount);
     } finally {
       setIsLoading(false);
     }
@@ -67,7 +66,7 @@ function WinamzAgents() {
 
   const handleApprove = useCallback(
     async (agentId: string) => {
-      await api.post(`winamz/agents/${agentId}/approve`).json();
+      await api.post(`api/winamz/agents/${agentId}/approve`).json();
       void fetchAgents();
     },
     [api, fetchAgents]
@@ -75,7 +74,7 @@ function WinamzAgents() {
 
   const handleSuspend = useCallback(
     async (agentId: string) => {
-      await api.post(`winamz/agents/${agentId}/suspend`).json();
+      await api.post(`api/winamz/agents/${agentId}/suspend`).json();
       void fetchAgents();
     },
     [api, fetchAgents]
@@ -83,7 +82,7 @@ function WinamzAgents() {
 
   const handleRestore = useCallback(
     async (agentId: string) => {
-      await api.post(`winamz/agents/${agentId}/restore`).json();
+      await api.post(`api/winamz/agents/${agentId}/restore`).json();
       void fetchAgents();
     },
     [api, fetchAgents]
@@ -194,7 +193,7 @@ function WinamzAgents() {
           pageSize,
           onChange: setPage,
         }}
-        placeholder={<DynamicT forKey="general.no_results_found" />}
+        placeholder="No agents found"
       />
     </div>
   );

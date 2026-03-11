@@ -6,6 +6,7 @@
  */
 
 import { generateStandardId } from '@logto/shared';
+import { sql } from '@silverhand/slonik';
 import { z } from 'zod';
 
 import koaGuard from '#src/middleware/koa-guard.js';
@@ -39,6 +40,25 @@ const agentResponseGuard = z.object({
   updatedAt: z.string(),
 });
 
+type AgentRow = {
+  id: string;
+  name: string;
+  type: 'personal' | 'org';
+  orgId: string;
+  ownerUserId: string | null;
+  logtoAppId: string | null;
+  status: 'pending_review' | 'approved' | 'rejected' | 'suspended';
+  requestedScopes: string[];
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+const toResponse = (row: AgentRow) => ({
+  ...row,
+  createdAt: new Date(row.createdAt).toISOString(),
+  updatedAt: new Date(row.updatedAt).toISOString(),
+});
+
 export default function winamzAgentRoutes<T extends ManagementApiRouter>(
   ...[router, { queries }]: RouterInitArgs<T>
 ) {
@@ -54,56 +74,45 @@ export default function winamzAgentRoutes<T extends ManagementApiRouter>(
         status: z.enum(['pending_review', 'approved', 'rejected', 'suspended']).optional(),
         type: z.enum(['personal', 'org']).optional(),
       }),
-      response: z.object({ total: z.number(), items: agentResponseGuard.array() }),
+      response: agentResponseGuard.array(),
       status: [200],
     }),
     async (ctx, next) => {
       const { limit, offset } = ctx.pagination;
       const { orgId, status, type } = ctx.guard.query;
 
-      const conditions: string[] = [];
-      const params: unknown[] = [];
+      const conditions = [
+        orgId && sql`org_id = ${orgId}`,
+        status && sql`status = ${status}`,
+        type && sql`type = ${type}`,
+      ].filter(Boolean);
 
-      if (orgId) {
-        params.push(orgId);
-        conditions.push(`org_id = $${params.length}`);
-      }
-      if (status) {
-        params.push(status);
-        conditions.push(`status = $${params.length}`);
-      }
-      if (type) {
-        params.push(type);
-        conditions.push(`type = $${params.length}`);
-      }
+      const whereClause =
+        conditions.length > 0
+          ? sql`WHERE ${sql.join(conditions, sql` AND `)}`
+          : sql``;
 
-      const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+      const [{ count }, rows] = await Promise.all([
+        pool.one<{ count: string }>(
+          sql`SELECT COUNT(*) as count FROM winamz_agents ${whereClause}`
+        ),
+        pool.any<AgentRow>(
+          sql`SELECT id, name, type,
+                     org_id as "orgId",
+                     owner_user_id as "ownerUserId",
+                     logto_app_id as "logtoAppId",
+                     status,
+                     requested_scopes as "requestedScopes",
+                     created_at as "createdAt",
+                     updated_at as "updatedAt"
+              FROM winamz_agents ${whereClause}
+              ORDER BY created_at DESC
+              LIMIT ${limit} OFFSET ${offset}`
+        ),
+      ]);
 
-      const countResult = await pool.one<{ count: string }>(
-        `SELECT COUNT(*) as count FROM winamz_agents ${where}`,
-        params
-      );
-
-      params.push(limit, offset);
-      const rows = await pool.any(
-        `SELECT id, name, type, org_id as "orgId", owner_user_id as "ownerUserId",
-                logto_app_id as "logtoAppId", status, requested_scopes as "requestedScopes",
-                created_at as "createdAt", updated_at as "updatedAt"
-         FROM winamz_agents ${where}
-         ORDER BY created_at DESC
-         LIMIT $${params.length - 1} OFFSET $${params.length}`,
-        params
-      );
-
-      ctx.body = {
-        total: Number(countResult.count),
-        items: rows.map((row) => ({
-          ...row,
-          createdAt: new Date(row.createdAt as string).toISOString(),
-          updatedAt: new Date(row.updatedAt as string).toISOString(),
-        })),
-      };
-
+      ctx.pagination.totalCount = Number(count);
+      ctx.body = rows.map(toResponse);
       return next();
     }
   );
@@ -119,12 +128,16 @@ export default function winamzAgentRoutes<T extends ManagementApiRouter>(
     async (ctx, next) => {
       const { id } = ctx.guard.params;
 
-      const row = await pool.maybeOne(
-        `SELECT id, name, type, org_id as "orgId", owner_user_id as "ownerUserId",
-                logto_app_id as "logtoAppId", status, requested_scopes as "requestedScopes",
-                created_at as "createdAt", updated_at as "updatedAt"
-         FROM winamz_agents WHERE id = $1`,
-        [id]
+      const row = await pool.maybeOne<AgentRow>(
+        sql`SELECT id, name, type,
+                   org_id as "orgId",
+                   owner_user_id as "ownerUserId",
+                   logto_app_id as "logtoAppId",
+                   status,
+                   requested_scopes as "requestedScopes",
+                   created_at as "createdAt",
+                   updated_at as "updatedAt"
+            FROM winamz_agents WHERE id = ${id}`
       );
 
       if (!row) {
@@ -132,12 +145,7 @@ export default function winamzAgentRoutes<T extends ManagementApiRouter>(
         return next();
       }
 
-      ctx.body = {
-        ...row,
-        createdAt: new Date(row.createdAt as string).toISOString(),
-        updatedAt: new Date(row.updatedAt as string).toISOString(),
-      };
-
+      ctx.body = toResponse(row);
       return next();
     }
   );
@@ -155,23 +163,27 @@ export default function winamzAgentRoutes<T extends ManagementApiRouter>(
       const id = generateStandardId();
       const now = new Date();
 
-      const row = await pool.one(
-        `INSERT INTO winamz_agents
-           (id, name, type, org_id, owner_user_id, requested_scopes, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-         RETURNING id, name, type, org_id as "orgId", owner_user_id as "ownerUserId",
-                   logto_app_id as "logtoAppId", status, requested_scopes as "requestedScopes",
-                   created_at as "createdAt", updated_at as "updatedAt"`,
-        [id, name, type, orgId, ownerUserId ?? null, requestedScopes, now, now]
+      const row = await pool.one<AgentRow>(
+        sql`INSERT INTO winamz_agents
+              (id, name, type, org_id, owner_user_id, requested_scopes, created_at, updated_at)
+            VALUES (
+              ${id}, ${name}, ${type}, ${orgId},
+              ${ownerUserId ?? null},
+              ${sql.array(requestedScopes, 'text')},
+              ${now.toISOString()}, ${now.toISOString()}
+            )
+            RETURNING id, name, type,
+                      org_id as "orgId",
+                      owner_user_id as "ownerUserId",
+                      logto_app_id as "logtoAppId",
+                      status,
+                      requested_scopes as "requestedScopes",
+                      created_at as "createdAt",
+                      updated_at as "updatedAt"`
       );
 
       ctx.status = 201;
-      ctx.body = {
-        ...row,
-        createdAt: new Date(row.createdAt as string).toISOString(),
-        updatedAt: new Date(row.updatedAt as string).toISOString(),
-      };
-
+      ctx.body = toResponse(row);
       return next();
     }
   );
@@ -187,27 +199,27 @@ export default function winamzAgentRoutes<T extends ManagementApiRouter>(
     }),
     async (ctx, next) => {
       const { id } = ctx.guard.params;
-      const updates = ctx.guard.body;
+      const { name, requestedScopes } = ctx.guard.body;
 
-      const setClauses: string[] = ['updated_at = NOW()'];
-      const params: unknown[] = [id];
+      const setClauses = [
+        sql`updated_at = NOW()`,
+        name !== undefined && sql`name = ${name}`,
+        requestedScopes !== undefined &&
+          sql`requested_scopes = ${sql.array(requestedScopes, 'text')}`,
+      ].filter(Boolean);
 
-      if (updates.name !== undefined) {
-        params.push(updates.name);
-        setClauses.push(`name = $${params.length}`);
-      }
-      if (updates.requestedScopes !== undefined) {
-        params.push(updates.requestedScopes);
-        setClauses.push(`requested_scopes = $${params.length}`);
-      }
-
-      const row = await pool.maybeOne(
-        `UPDATE winamz_agents SET ${setClauses.join(', ')}
-         WHERE id = $1
-         RETURNING id, name, type, org_id as "orgId", owner_user_id as "ownerUserId",
-                   logto_app_id as "logtoAppId", status, requested_scopes as "requestedScopes",
-                   created_at as "createdAt", updated_at as "updatedAt"`,
-        params
+      const row = await pool.maybeOne<AgentRow>(
+        sql`UPDATE winamz_agents
+            SET ${sql.join(setClauses, sql`, `)}
+            WHERE id = ${id}
+            RETURNING id, name, type,
+                      org_id as "orgId",
+                      owner_user_id as "ownerUserId",
+                      logto_app_id as "logtoAppId",
+                      status,
+                      requested_scopes as "requestedScopes",
+                      created_at as "createdAt",
+                      updated_at as "updatedAt"`
       );
 
       if (!row) {
@@ -215,12 +227,7 @@ export default function winamzAgentRoutes<T extends ManagementApiRouter>(
         return next();
       }
 
-      ctx.body = {
-        ...row,
-        createdAt: new Date(row.createdAt as string).toISOString(),
-        updatedAt: new Date(row.updatedAt as string).toISOString(),
-      };
-
+      ctx.body = toResponse(row);
       return next();
     }
   );
@@ -235,13 +242,11 @@ export default function winamzAgentRoutes<T extends ManagementApiRouter>(
     async (ctx, next) => {
       const { id } = ctx.guard.params;
 
-      const result = await pool.maybeOne(
-        `DELETE FROM winamz_agents WHERE id = $1 RETURNING id`,
-        [id]
+      const result = await pool.maybeOne<{ id: string }>(
+        sql`DELETE FROM winamz_agents WHERE id = ${id} RETURNING id`
       );
 
       ctx.status = result ? 204 : 404;
-
       return next();
     }
   );
@@ -257,31 +262,29 @@ export default function winamzAgentRoutes<T extends ManagementApiRouter>(
     async (ctx, next) => {
       const { id } = ctx.guard.params;
 
-      const row = await pool.maybeOne(
-        `UPDATE winamz_agents
-         SET status = 'approved', updated_at = NOW()
-         WHERE id = $1 AND status = 'pending_review'
-         RETURNING id, name, type, org_id as "orgId", owner_user_id as "ownerUserId",
-                   logto_app_id as "logtoAppId", status, requested_scopes as "requestedScopes",
-                   created_at as "createdAt", updated_at as "updatedAt"`,
-        [id]
+      const row = await pool.maybeOne<AgentRow>(
+        sql`UPDATE winamz_agents
+            SET status = 'approved', updated_at = NOW()
+            WHERE id = ${id} AND status = 'pending_review'
+            RETURNING id, name, type,
+                      org_id as "orgId",
+                      owner_user_id as "ownerUserId",
+                      logto_app_id as "logtoAppId",
+                      status,
+                      requested_scopes as "requestedScopes",
+                      created_at as "createdAt",
+                      updated_at as "updatedAt"`
       );
 
       if (!row) {
-        const existing = await pool.maybeOne(
-          `SELECT id FROM winamz_agents WHERE id = $1`,
-          [id]
+        const existing = await pool.maybeOne<{ id: string }>(
+          sql`SELECT id FROM winamz_agents WHERE id = ${id}`
         );
         ctx.status = existing ? 422 : 404;
         return next();
       }
 
-      ctx.body = {
-        ...row,
-        createdAt: new Date(row.createdAt as string).toISOString(),
-        updatedAt: new Date(row.updatedAt as string).toISOString(),
-      };
-
+      ctx.body = toResponse(row);
       return next();
     }
   );
@@ -297,14 +300,18 @@ export default function winamzAgentRoutes<T extends ManagementApiRouter>(
     async (ctx, next) => {
       const { id } = ctx.guard.params;
 
-      const row = await pool.maybeOne(
-        `UPDATE winamz_agents
-         SET status = 'suspended', updated_at = NOW()
-         WHERE id = $1
-         RETURNING id, name, type, org_id as "orgId", owner_user_id as "ownerUserId",
-                   logto_app_id as "logtoAppId", status, requested_scopes as "requestedScopes",
-                   created_at as "createdAt", updated_at as "updatedAt"`,
-        [id]
+      const row = await pool.maybeOne<AgentRow>(
+        sql`UPDATE winamz_agents
+            SET status = 'suspended', updated_at = NOW()
+            WHERE id = ${id}
+            RETURNING id, name, type,
+                      org_id as "orgId",
+                      owner_user_id as "ownerUserId",
+                      logto_app_id as "logtoAppId",
+                      status,
+                      requested_scopes as "requestedScopes",
+                      created_at as "createdAt",
+                      updated_at as "updatedAt"`
       );
 
       if (!row) {
@@ -312,19 +319,12 @@ export default function winamzAgentRoutes<T extends ManagementApiRouter>(
         return next();
       }
 
-      // Audit log
       await pool.query(
-        `INSERT INTO winamz_audit_logs (id, event_type, agent_id, org_id, created_at)
-         VALUES ($1, 'agent_suspended', $2, $3, NOW())`,
-        [generateStandardId(), id, row.orgId]
+        sql`INSERT INTO winamz_audit_logs (id, event_type, agent_id, org_id, created_at)
+            VALUES (${generateStandardId()}, 'agent_suspended', ${id}, ${row.orgId}, NOW())`
       );
 
-      ctx.body = {
-        ...row,
-        createdAt: new Date(row.createdAt as string).toISOString(),
-        updatedAt: new Date(row.updatedAt as string).toISOString(),
-      };
-
+      ctx.body = toResponse(row);
       return next();
     }
   );
@@ -340,14 +340,18 @@ export default function winamzAgentRoutes<T extends ManagementApiRouter>(
     async (ctx, next) => {
       const { id } = ctx.guard.params;
 
-      const row = await pool.maybeOne(
-        `UPDATE winamz_agents
-         SET status = 'approved', updated_at = NOW()
-         WHERE id = $1 AND status = 'suspended'
-         RETURNING id, name, type, org_id as "orgId", owner_user_id as "ownerUserId",
-                   logto_app_id as "logtoAppId", status, requested_scopes as "requestedScopes",
-                   created_at as "createdAt", updated_at as "updatedAt"`,
-        [id]
+      const row = await pool.maybeOne<AgentRow>(
+        sql`UPDATE winamz_agents
+            SET status = 'approved', updated_at = NOW()
+            WHERE id = ${id} AND status = 'suspended'
+            RETURNING id, name, type,
+                      org_id as "orgId",
+                      owner_user_id as "ownerUserId",
+                      logto_app_id as "logtoAppId",
+                      status,
+                      requested_scopes as "requestedScopes",
+                      created_at as "createdAt",
+                      updated_at as "updatedAt"`
       );
 
       if (!row) {
@@ -355,12 +359,7 @@ export default function winamzAgentRoutes<T extends ManagementApiRouter>(
         return next();
       }
 
-      ctx.body = {
-        ...row,
-        createdAt: new Date(row.createdAt as string).toISOString(),
-        updatedAt: new Date(row.updatedAt as string).toISOString(),
-      };
-
+      ctx.body = toResponse(row);
       return next();
     }
   );

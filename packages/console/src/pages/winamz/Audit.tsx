@@ -7,7 +7,6 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-import DynamicT from '@/ds-components/DynamicT';
 import Search from '@/ds-components/Search';
 import Table from '@/ds-components/Table';
 import Tag from '@/ds-components/Tag';
@@ -55,11 +54,11 @@ function WinamzAudit() {
       if (keyword) {
         params.set('agent_id', keyword);
       }
-      const response = await api
-        .get(`winamz/audit?${params.toString()}`)
-        .json<{ total: number; data: AuditLog[] }>();
-      setLogs(response.data);
-      setTotal(response.total);
+      const response = await api.get(`api/winamz/audit?${params.toString()}`);
+      const items = await response.json<AuditLog[]>();
+      const totalCount = Number(response.headers.get('Total-Number') ?? '0');
+      setLogs(items);
+      setTotal(totalCount);
     } finally {
       setIsLoading(false);
     }
@@ -165,7 +164,7 @@ function WinamzAudit() {
           pageSize,
           onChange: setPage,
         }}
-        placeholder={<DynamicT forKey="general.no_results_found" />}
+        placeholder="No audit logs found"
       />
     </div>
   );
