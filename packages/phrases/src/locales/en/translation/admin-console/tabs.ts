@@ -18,6 +18,10 @@ const tabs = {
   customize_jwt: 'Custom JWT',
   signing_keys: 'Signing keys',
   organization_template: 'Organization template',
+  // [winamz] AI agent management tabs
+  winamz_agents: 'AI Agents',
+  winamz_grants: 'Delegations',
+  winamz_audit: 'Agent Audit',
 };
 
 export default Object.freeze(tabs);

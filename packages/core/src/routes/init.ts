@@ -62,6 +62,8 @@ import verificationRoutes, { verificationApiPrefix } from './verification/index.
 import verificationCodeRoutes from './verification-code.js';
 import wellKnownRoutes from './well-known/index.js';
 import wellKnownOpenApiRoutes from './well-known/well-known.openapi.js';
+// [winamz] Import WinAMZ AI agent routes
+import winamzRoutes from './winamz/index.js';
 
 const createRouters = (tenant: TenantContext) => {
   const interactionRouter: AnonymousRouter = new Router();
@@ -117,6 +119,8 @@ const createRouters = (tenant: TenantContext) => {
   sentinelActivitiesRoutes(managementRouter, tenant);
   customProfileFieldsRoutes(managementRouter, tenant);
   secretsRoutes(managementRouter, tenant);
+  // [winamz] Mount WinAMZ AI agent routes
+  winamzRoutes(managementRouter, tenant);
 
   // General anonymous router for publicly accessible APIs
   const anonymousRouter: AnonymousRouter = new Router();

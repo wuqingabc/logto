@@ -2,6 +2,8 @@ import { type Optional } from '@silverhand/essentials';
 import type { TFuncKey } from 'i18next';
 import type { FC, ReactNode } from 'react';
 
+// [winamz] AI agent governance sidebar
+import AgentIcon from '@/assets/icons/hook.svg?react';
 import BarGraph from '@/assets/icons/bar-graph.svg?react';
 import Bolt from '@/assets/icons/bolt.svg?react';
 import Box from '@/assets/icons/box.svg?react';
@@ -154,6 +156,27 @@ export const useSidebarMenuItems = (): {
         {
           Icon: Gear,
           title: 'tenant_settings',
+        },
+      ],
+    },
+    // [winamz] AI agent governance section
+    {
+      title: 'ai_agents',
+      items: [
+        {
+          Icon: AgentIcon,
+          title: 'winamz_agents',
+          path: 'winamz/agents',
+        },
+        {
+          Icon: List,
+          title: 'winamz_grants',
+          path: 'winamz/grants',
+        },
+        {
+          Icon: BarGraph,
+          title: 'winamz_audit',
+          path: 'winamz/audit',
         },
       ],
     },
