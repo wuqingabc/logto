@@ -9,6 +9,7 @@ import { generateStandardId } from '@logto/shared';
 import { sql } from '@silverhand/slonik';
 import { z } from 'zod';
 
+import RequestError from '#src/errors/RequestError/index.js';
 import koaGuard from '#src/middleware/koa-guard.js';
 import koaPagination from '#src/middleware/koa-pagination.js';
 
@@ -156,10 +157,29 @@ export default function winamzAgentRoutes<T extends ManagementApiRouter>(
     koaGuard({
       body: agentCreateGuard,
       response: agentResponseGuard,
-      status: [201],
+      status: [201, 422],
     }),
     async (ctx, next) => {
       const { name, type, orgId, ownerUserId, requestedScopes } = ctx.guard.body;
+
+      // Validate org exists
+      const org = await pool.maybeOne<{ id: string }>(
+        sql`SELECT id FROM organizations WHERE id = ${orgId}`
+      );
+      if (!org) {
+        throw new RequestError({ code: 'entity.not_found', status: 422 });
+      }
+
+      // For personal agents, validate ownerUserId exists
+      if (type === 'personal' && ownerUserId) {
+        const user = await pool.maybeOne<{ id: string }>(
+          sql`SELECT id FROM users WHERE id = ${ownerUserId}`
+        );
+        if (!user) {
+          throw new RequestError({ code: 'entity.not_found', status: 422 });
+        }
+      }
+
       const id = generateStandardId();
       const now = new Date();
 

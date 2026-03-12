@@ -22,6 +22,10 @@ const tabs = {
   winamz_agents: 'AI Agents',
   winamz_grants: 'Delegations',
   winamz_audit: 'Agent Audit',
+  winamz_create_agent: 'Create agent',
+  winamz_agents_placeholder_title: 'AI Agents',
+  winamz_agents_placeholder_description:
+    'Register and manage AI agents that act on behalf of users or organizations. Approve agents to let them obtain tokens and perform delegated actions.',
 };
 
 export default Object.freeze(tabs);

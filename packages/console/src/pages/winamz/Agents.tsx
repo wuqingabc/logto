@@ -6,13 +6,23 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import { useTranslation } from 'react-i18next';
 
+import Plus from '@/assets/icons/plus.svg?react';
+import RolesEmptyDark from '@/assets/images/roles-empty-dark.svg?react';
+import RolesEmpty from '@/assets/images/roles-empty.svg?react';
+import EmptyDataPlaceholder from '@/components/EmptyDataPlaceholder';
+import ItemPreview from '@/components/ItemPreview';
 import Button from '@/ds-components/Button';
+import CardTitle from '@/ds-components/CardTitle';
 import Search from '@/ds-components/Search';
 import Table from '@/ds-components/Table';
+import TablePlaceholder from '@/ds-components/Table/TablePlaceholder';
 import Tag from '@/ds-components/Tag';
 import useApi from '@/hooks/use-api';
+import useTenantPathname from '@/hooks/use-tenant-pathname';
+import pageLayout from '@/scss/page-layout.module.scss';
+
+import CreateAgentModal from './components/CreateAgentModal';
 
 type Agent = {
   id: string;
@@ -33,14 +43,15 @@ const statusTagMap: Record<Agent['status'], 'info' | 'success' | 'error' | 'aler
 };
 
 function WinamzAgents() {
-  const { t } = useTranslation(undefined, { keyPrefix: 'admin_console' });
   const api = useApi();
+  const { navigate } = useTenantPathname();
 
   const [agents, setAgents] = useState<Agent[]>([]);
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [keyword, setKeyword] = useState('');
   const [page, setPage] = useState(1);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const pageSize = 20;
 
   const fetchAgents = useCallback(async () => {
@@ -98,37 +109,44 @@ function WinamzAgents() {
     : agents;
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-        <h1>AI Agents</h1>
-        <Search
-          defaultValue={keyword}
-          isClearable={Boolean(keyword)}
-          placeholder="Search agents..."
-          onSearch={setKeyword}
-          onClearSearch={() => { setKeyword(''); }}
+    <div className={pageLayout.container}>
+      <div className={pageLayout.headline}>
+        <CardTitle
+          title="tabs.winamz_agents"
+          subtitle="winamz.agents_subtitle"
+        />
+        <Button
+          icon={<Plus />}
+          type="primary"
+          size="large"
+          title="winamz.action_create_agent"
+          onClick={() => {
+            setIsCreateModalOpen(true);
+          }}
         />
       </div>
       <Table
+        className={pageLayout.table}
         isLoading={isLoading}
         rowIndexKey="id"
         columns={[
           {
             title: 'Name',
             dataIndex: 'name',
-            render: (_, agent) => (
-              <div>
-                <div style={{ fontWeight: 600 }}>{agent.name}</div>
-                <div style={{ fontSize: 12, color: '#888', fontFamily: 'monospace' }}>
-                  {agent.id}
-                </div>
-              </div>
+            colSpan: 5,
+            render: (agent) => (
+              <ItemPreview
+                title={agent.name}
+                subtitle={agent.id}
+                to={`/winamz/agents/${agent.id}`}
+              />
             ),
           },
           {
             title: 'Type',
             dataIndex: 'type',
-            render: (_, agent) => (
+            colSpan: 2,
+            render: (agent) => (
               <Tag type="state" status={agent.type === 'personal' ? 'info' : 'success'}>
                 {agent.type === 'personal' ? 'Personal' : 'Org'}
               </Tag>
@@ -137,16 +155,18 @@ function WinamzAgents() {
           {
             title: 'Status',
             dataIndex: 'status',
-            render: (_, agent) => (
+            colSpan: 3,
+            render: (agent) => (
               <Tag type="state" status={statusTagMap[agent.status]}>
-                {agent.status.replace('_', ' ')}
+                {agent.status.replace(/_/g, ' ')}
               </Tag>
             ),
           },
           {
             title: 'Scopes',
             dataIndex: 'requestedScopes',
-            render: (_, agent) => (
+            colSpan: 3,
+            render: (agent) => (
               <div style={{ fontSize: 12 }}>
                 {agent.requestedScopes.length === 0
                   ? '—'
@@ -157,29 +177,41 @@ function WinamzAgents() {
           {
             title: 'Actions',
             dataIndex: 'actions',
-            render: (_, agent) => (
-              <div style={{ display: 'flex', gap: 8 }}>
+            colSpan: 3,
+            render: (agent) => (
+              <div
+                style={{ display: 'flex', gap: 8 }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                }}
+              >
                 {agent.status === 'pending_review' && (
                   <Button
                     size="small"
-                    title="Approve"
+                    title="winamz.action_approve"
                     type="primary"
-                    onClick={() => { void handleApprove(agent.id); }}
+                    onClick={() => {
+                      void handleApprove(agent.id);
+                    }}
                   />
                 )}
                 {agent.status === 'approved' && (
                   <Button
                     size="small"
-                    title="Suspend"
+                    title="winamz.action_suspend"
                     type="danger"
-                    onClick={() => { void handleSuspend(agent.id); }}
+                    onClick={() => {
+                      void handleSuspend(agent.id);
+                    }}
                   />
                 )}
                 {agent.status === 'suspended' && (
                   <Button
                     size="small"
-                    title="Restore"
-                    onClick={() => { void handleRestore(agent.id); }}
+                    title="winamz.action_restore"
+                    onClick={() => {
+                      void handleRestore(agent.id);
+                    }}
                   />
                 )}
               </div>
@@ -187,13 +219,58 @@ function WinamzAgents() {
           },
         ]}
         rowGroups={[{ key: 'agents', data: filteredAgents }]}
+        rowClickHandler={(agent) => {
+          navigate(`/winamz/agents/${agent.id}`);
+        }}
+        filter={
+          <Search
+            defaultValue={keyword}
+            isClearable={Boolean(keyword)}
+            placeholder="Search agents..."
+            onSearch={setKeyword}
+            onClearSearch={() => {
+              setKeyword('');
+            }}
+          />
+        }
         pagination={{
           page,
           totalCount: total,
           pageSize,
           onChange: setPage,
         }}
-        placeholder="No agents found"
+        placeholder={
+          keyword ? (
+            <EmptyDataPlaceholder />
+          ) : (
+            <TablePlaceholder
+              image={<RolesEmpty />}
+              imageDark={<RolesEmptyDark />}
+              title="tabs.winamz_agents"
+              description="tabs.winamz_agents_placeholder_description"
+              action={
+                <Button
+                  title="winamz.action_create_agent"
+                  type="primary"
+                  size="large"
+                  icon={<Plus />}
+                  onClick={() => {
+                    setIsCreateModalOpen(true);
+                  }}
+                />
+              }
+            />
+          )
+        }
+      />
+      <CreateAgentModal
+        isOpen={isCreateModalOpen}
+        onClose={(createdId) => {
+          setIsCreateModalOpen(false);
+          if (createdId) {
+            void fetchAgents();
+          }
+        }}
       />
     </div>
   );

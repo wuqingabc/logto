@@ -50,6 +50,8 @@ import users from './users.js';
 import webhook_details from './webhook-details.js';
 import webhooks from './webhooks.js';
 import welcome from './welcome.js';
+// [winamz] AI agent management translations
+import winamz from './winamz.js';
 
 const admin_console = {
   title: 'Admin Console',
@@ -107,6 +109,8 @@ const admin_console = {
   inkeep_ai_bot,
   user_identity_details,
   enterprise_subscription,
+  // [winamz] AI agent management
+  winamz,
 };
 
 export default Object.freeze(admin_console);

@@ -22,7 +22,7 @@ import { useTenantSettings } from './routes/tenant-settings';
 import { users } from './routes/users';
 import { webhooks } from './routes/webhooks';
 // [winamz] AI agent governance routes
-import { winamzAgents, winamzGrants, winamzAudit } from './routes/winamz';
+import { winamzAgents, winamzAgentDetails, winamzGrants, winamzAudit } from './routes/winamz';
 
 const Dashboard = safeLazy(async () => import('@/pages/Dashboard'));
 const GetStarted = safeLazy(async () => import('@/pages/GetStarted'));
@@ -55,6 +55,7 @@ export const useConsoleRoutes = () => {
         customizeJwt,
         // [winamz] AI agent governance routes
         winamzAgents,
+        winamzAgentDetails,
         winamzGrants,
         winamzAudit
       ),

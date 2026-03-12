@@ -38,7 +38,7 @@ overrides:
 
 patchedDependencies:
   tsup:
-    hash: 248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd
+    hash: ejza5vcogi2dpo27l77wrlqt7y
     path: patches/tsup.patch
 
 importers:
@@ -75,7 +75,7 @@ importers:
         version: 8.11.3
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.0.0
         version: 5.5.3
@@ -476,7 +476,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -543,7 +543,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -601,7 +601,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -659,7 +659,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -720,7 +720,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -784,7 +784,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -848,7 +848,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -909,7 +909,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -976,7 +976,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -1034,7 +1034,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -1092,7 +1092,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -1150,7 +1150,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -1208,7 +1208,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -1269,7 +1269,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -1339,7 +1339,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -1400,7 +1400,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -1455,7 +1455,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -1504,7 +1504,7 @@ importers:
         version: 3.5.3
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -1562,7 +1562,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -1620,7 +1620,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -1678,7 +1678,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -1739,7 +1739,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -1800,7 +1800,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -1861,7 +1861,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -1919,7 +1919,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -1977,7 +1977,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -2035,7 +2035,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -2093,7 +2093,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -2151,7 +2151,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -2209,7 +2209,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -2267,7 +2267,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -2334,7 +2334,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -2404,7 +2404,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -2462,7 +2462,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -2517,7 +2517,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -2575,7 +2575,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -2639,7 +2639,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -2697,7 +2697,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -2758,7 +2758,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -2816,7 +2816,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -2880,7 +2880,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -2938,7 +2938,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -2996,7 +2996,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -3051,7 +3051,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -3109,7 +3109,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -3167,7 +3167,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -3225,7 +3225,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -3286,7 +3286,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -3341,7 +3341,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -3396,7 +3396,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -4051,7 +4051,7 @@ importers:
         version: 7.0.0
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -4220,7 +4220,7 @@ importers:
         version: 3.5.3
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.9.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.9.3)(yaml@2.4.5)
 
   packages/experience:
     devDependencies:
@@ -4530,7 +4530,7 @@ importers:
         version: 23.10.3(typescript@5.5.3)
       tsup:
         specifier: ^8.5.0
-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
       typescript:
         specifier: ^5.5.3
         version: 5.5.3
@@ -4748,6 +4748,10 @@ importers:
       '@withtyped/server':
         specifier: ^0.14.0
         version: 0.14.0(zod@3.24.3)
+    optionalDependencies:
+      zod:
+        specifier: 3.24.3
+        version: 3.24.3
     devDependencies:
       '@silverhand/eslint-config':
         specifier: 6.0.1
@@ -4782,10 +4786,6 @@ importers:
       vitest:
         specifier: ^3.1.1
         version: 3.1.1(@types/debug@4.1.12)(@types/node@22.14.1)(jiti@1.21.0)(jsdom@26.0.0)(lightningcss@1.25.1)(sass@1.77.8)(yaml@2.4.5)
-    optionalDependencies:
-      zod:
-        specifier: 3.24.3
-        version: 3.24.3
 
   packages/toolkit/core-kit:
     dependencies:
@@ -4801,6 +4801,10 @@ importers:
       color:
         specifier: ^4.2.3
         version: 4.2.3
+    optionalDependencies:
+      zod:
+        specifier: 3.24.3
+        version: 3.24.3
     devDependencies:
       '@silverhand/eslint-config':
         specifier: 6.0.1
@@ -4847,12 +4851,12 @@ importers:
       vitest:
         specifier: ^3.1.1
         version: 3.1.1(@types/debug@4.1.12)(@types/node@22.14.1)(jiti@1.21.0)(jsdom@26.0.0)(lightningcss@1.25.1)(sass@1.77.8)(yaml@2.4.5)
+
+  packages/toolkit/language-kit:
     optionalDependencies:
       zod:
         specifier: 3.24.3
         version: 3.24.3
-
-  packages/toolkit/language-kit:
     devDependencies:
       '@silverhand/eslint-config':
         specifier: 6.0.1
@@ -4881,10 +4885,6 @@ importers:
       vitest:
         specifier: ^3.1.1
         version: 3.1.1(@types/debug@4.1.12)(@types/node@22.14.1)(jiti@1.21.0)(jsdom@26.0.0)(lightningcss@1.25.1)(sass@1.77.8)(yaml@2.4.5)
-    optionalDependencies:
-      zod:
-        specifier: 3.24.3
-        version: 3.24.3
 
   packages/translate:
     dependencies:
@@ -22084,7 +22084,7 @@ snapshots:
       debug: 4.4.1(supports-color@5.5.0)
       enhanced-resolve: 5.16.0
       eslint: 8.57.0
-      eslint-module-utils: 2.8.1(@typescript-eslint/parser@7.7.0(eslint@8.57.0)(typescript@5.5.3))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.6.1)(eslint@8.57.0)
+      eslint-module-utils: 2.8.1(@typescript-eslint/parser@7.7.0(eslint@8.57.0)(typescript@5.5.3))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.6.1(@typescript-eslint/parser@7.7.0(eslint@8.57.0)(typescript@5.5.3))(eslint-plugin-import@2.29.1)(eslint@8.57.0))(eslint@8.57.0)
       eslint-plugin-import: 2.29.1(@typescript-eslint/parser@7.7.0(eslint@8.57.0)(typescript@5.5.3))(eslint-import-resolver-typescript@3.6.1)(eslint@8.57.0)
       fast-glob: 3.3.2
       get-tsconfig: 4.7.3
@@ -22101,7 +22101,7 @@ snapshots:
       debug: 4.4.1(supports-color@5.5.0)
       enhanced-resolve: 5.16.0
       eslint: 8.57.0
-      eslint-module-utils: 2.8.1(@typescript-eslint/parser@7.7.0(eslint@8.57.0)(typescript@5.9.3))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.6.1)(eslint@8.57.0)
+      eslint-module-utils: 2.8.1(@typescript-eslint/parser@7.7.0(eslint@8.57.0)(typescript@5.9.3))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.6.1(@typescript-eslint/parser@7.7.0(eslint@8.57.0)(typescript@5.9.3))(eslint-plugin-import@2.29.1)(eslint@8.57.0))(eslint@8.57.0)
       eslint-plugin-import: 2.29.1(@typescript-eslint/parser@7.7.0(eslint@8.57.0)(typescript@5.9.3))(eslint-import-resolver-typescript@3.6.1)(eslint@8.57.0)
       fast-glob: 3.3.2
       get-tsconfig: 4.7.3
@@ -22113,7 +22113,7 @@ snapshots:
       - eslint-import-resolver-webpack
       - supports-color
 
-  eslint-module-utils@2.8.1(@typescript-eslint/parser@7.7.0(eslint@8.57.0)(typescript@5.5.3))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.6.1)(eslint@8.57.0):
+  eslint-module-utils@2.8.1(@typescript-eslint/parser@7.7.0(eslint@8.57.0)(typescript@5.5.3))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.6.1(@typescript-eslint/parser@7.7.0(eslint@8.57.0)(typescript@5.5.3))(eslint-plugin-import@2.29.1)(eslint@8.57.0))(eslint@8.57.0):
     dependencies:
       debug: 3.2.7
     optionalDependencies:
@@ -22124,7 +22124,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  eslint-module-utils@2.8.1(@typescript-eslint/parser@7.7.0(eslint@8.57.0)(typescript@5.9.3))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.6.1)(eslint@8.57.0):
+  eslint-module-utils@2.8.1(@typescript-eslint/parser@7.7.0(eslint@8.57.0)(typescript@5.9.3))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.6.1(@typescript-eslint/parser@7.7.0(eslint@8.57.0)(typescript@5.9.3))(eslint-plugin-import@2.29.1)(eslint@8.57.0))(eslint@8.57.0):
     dependencies:
       debug: 3.2.7
     optionalDependencies:
@@ -22163,7 +22163,7 @@ snapshots:
       doctrine: 2.1.0
       eslint: 8.57.0
       eslint-import-resolver-node: 0.3.9
-      eslint-module-utils: 2.8.1(@typescript-eslint/parser@7.7.0(eslint@8.57.0)(typescript@5.5.3))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.6.1)(eslint@8.57.0)
+      eslint-module-utils: 2.8.1(@typescript-eslint/parser@7.7.0(eslint@8.57.0)(typescript@5.5.3))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.6.1(@typescript-eslint/parser@7.7.0(eslint@8.57.0)(typescript@5.5.3))(eslint-plugin-import@2.29.1)(eslint@8.57.0))(eslint@8.57.0)
       hasown: 2.0.2
       is-core-module: 2.13.1
       is-glob: 4.0.3
@@ -22190,7 +22190,7 @@ snapshots:
       doctrine: 2.1.0
       eslint: 8.57.0
       eslint-import-resolver-node: 0.3.9
-      eslint-module-utils: 2.8.1(@typescript-eslint/parser@7.7.0(eslint@8.57.0)(typescript@5.9.3))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.6.1)(eslint@8.57.0)
+      eslint-module-utils: 2.8.1(@typescript-eslint/parser@7.7.0(eslint@8.57.0)(typescript@5.9.3))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.6.1(@typescript-eslint/parser@7.7.0(eslint@8.57.0)(typescript@5.9.3))(eslint-plugin-import@2.29.1)(eslint@8.57.0))(eslint@8.57.0)
       hasown: 2.0.2
       is-core-module: 2.13.1
       is-glob: 4.0.3
@@ -27907,7 +27907,7 @@ snapshots:
 
   tsscmp@1.0.6: {}
 
-  tsup@8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5):
+  tsup@8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5):
     dependencies:
       bundle-require: 5.1.0(esbuild@0.25.3)
       cac: 6.7.14
@@ -27936,7 +27936,7 @@ snapshots:
       - tsx
       - yaml
 
-  tsup@8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.9.3)(yaml@2.4.5):
+  tsup@8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.9.3)(yaml@2.4.5):
     dependencies:
       bundle-require: 5.1.0(esbuild@0.25.3)
       cac: 6.7.14

@@ -7,10 +7,13 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
+import CardTitle from '@/ds-components/CardTitle';
+import DynamicT from '@/ds-components/DynamicT';
 import Search from '@/ds-components/Search';
 import Table from '@/ds-components/Table';
 import Tag from '@/ds-components/Tag';
 import useApi from '@/hooks/use-api';
+import pageLayout from '@/scss/page-layout.module.scss';
 
 type AuditLog = {
   id: string;
@@ -69,68 +72,55 @@ function WinamzAudit() {
   }, [fetchLogs]);
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-        <h1>Agent Audit Log</h1>
-        <Search
-          defaultValue={keyword}
-          isClearable={Boolean(keyword)}
-          placeholder="Filter by agent ID..."
-          onSearch={(kw) => {
-            setKeyword(kw);
-            setPage(1);
-          }}
-          onClearSearch={() => {
-            setKeyword('');
-            setPage(1);
-          }}
+    <div className={pageLayout.container}>
+      <div className={pageLayout.headline}>
+        <CardTitle
+          title="tabs.winamz_audit"
+          subtitle="winamz.audit_subtitle"
         />
       </div>
       <Table
+        className={pageLayout.table}
         isLoading={isLoading}
         rowIndexKey="id"
         columns={[
           {
-            title: 'Event',
+            title: <DynamicT forKey="winamz.col_event" />,
             dataIndex: 'eventType',
-            render: (_, log) => (
-              <Tag
-                type="state"
-                status={eventTypeColors[log.eventType] ?? 'info'}
-              >
+            colSpan: 3,
+            render: (log) => (
+              <Tag type="state" status={eventTypeColors[log.eventType] ?? 'info'}>
                 {log.eventType}
               </Tag>
             ),
           },
           {
-            title: 'Agent ID',
+            title: <DynamicT forKey="winamz.col_agent_id" />,
             dataIndex: 'agentId',
-            render: (_, log) => (
-              <span style={{ fontFamily: 'monospace', fontSize: 12 }}>
-                {log.agentId ?? '—'}
-              </span>
+            colSpan: 3,
+            render: (log) => (
+              <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{log.agentId ?? '—'}</span>
             ),
           },
           {
-            title: 'User ID',
+            title: <DynamicT forKey="winamz.col_user_id" />,
             dataIndex: 'userId',
-            render: (_, log) => (
-              <span style={{ fontFamily: 'monospace', fontSize: 12 }}>
-                {log.userId ?? '—'}
-              </span>
+            colSpan: 2,
+            render: (log) => (
+              <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{log.userId ?? '—'}</span>
             ),
           },
           {
-            title: 'Resource',
+            title: <DynamicT forKey="winamz.col_resource" />,
             dataIndex: 'resource',
-            render: (_, log) => (
-              <span style={{ fontSize: 12 }}>{log.resource ?? '—'}</span>
-            ),
+            colSpan: 2,
+            render: (log) => <span style={{ fontSize: 12 }}>{log.resource ?? '—'}</span>,
           },
           {
-            title: 'Metadata',
+            title: <DynamicT forKey="winamz.col_metadata" />,
             dataIndex: 'metadata',
-            render: (_, log) =>
+            colSpan: 3,
+            render: (log) =>
               log.metadata ? (
                 <pre
                   style={{
@@ -148,9 +138,10 @@ function WinamzAudit() {
               ),
           },
           {
-            title: 'Time',
+            title: <DynamicT forKey="winamz.col_time" />,
             dataIndex: 'createdAt',
-            render: (_, log) => (
+            colSpan: 3,
+            render: (log) => (
               <span style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
                 {new Date(log.createdAt).toLocaleString()}
               </span>
@@ -158,6 +149,21 @@ function WinamzAudit() {
           },
         ]}
         rowGroups={[{ key: 'logs', data: logs }]}
+        filter={
+          <Search
+            defaultValue={keyword}
+            isClearable={Boolean(keyword)}
+            placeholder="Filter by agent ID..."
+            onSearch={(kw) => {
+              setKeyword(kw);
+              setPage(1);
+            }}
+            onClearSearch={() => {
+              setKeyword('');
+              setPage(1);
+            }}
+          />
+        }
         pagination={{
           page,
           totalCount: total,

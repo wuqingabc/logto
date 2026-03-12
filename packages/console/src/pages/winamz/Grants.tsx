@@ -8,10 +8,13 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import Button from '@/ds-components/Button';
+import CardTitle from '@/ds-components/CardTitle';
+import DynamicT from '@/ds-components/DynamicT';
 import Search from '@/ds-components/Search';
 import Table from '@/ds-components/Table';
 import Tag from '@/ds-components/Tag';
 import useApi from '@/hooks/use-api';
+import pageLayout from '@/scss/page-layout.module.scss';
 
 type Grant = {
   id: string;
@@ -61,9 +64,7 @@ function WinamzGrants() {
   const handleRevoke = useCallback(
     async (grantId: string) => {
       const reason = window.prompt('Reason for revocation (optional):') ?? undefined;
-      await api
-        .post(`api/winamz/grants/${grantId}/revoke`, { json: { reason } })
-        .json();
+      await api.post(`api/winamz/grants/${grantId}/revoke`, { json: { reason } }).json();
       void fetchGrants();
     },
     [api, fetchGrants]
@@ -71,84 +72,82 @@ function WinamzGrants() {
 
   const filteredGrants = keyword
     ? grants.filter(
-        (g) =>
-          g.agentId.includes(keyword) ||
-          g.userId.includes(keyword) ||
-          g.id.includes(keyword)
+        (g) => g.agentId.includes(keyword) || g.userId.includes(keyword) || g.id.includes(keyword)
       )
     : grants;
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-        <h1>Delegation Grants</h1>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <Button
-            size="small"
-            title={showRevoked ? 'Show active' : 'Show revoked'}
-            onClick={() => {
-              setShowRevoked((prev) => !prev);
-              setPage(1);
-            }}
-          />
-          <Search
-            defaultValue={keyword}
-            isClearable={Boolean(keyword)}
-            placeholder="Search by agent/user ID..."
-            onSearch={setKeyword}
-            onClearSearch={() => { setKeyword(''); }}
-          />
-        </div>
+    <div className={pageLayout.container}>
+      <div className={pageLayout.headline}>
+        <CardTitle
+          title="tabs.winamz_grants"
+          subtitle="winamz.grants_subtitle"
+        />
+        <Button
+          size="small"
+          title={showRevoked ? 'winamz.action_show_active' : 'winamz.action_show_revoked'}
+          onClick={() => {
+            setShowRevoked((prev) => !prev);
+            setPage(1);
+          }}
+        />
       </div>
       <Table
+        className={pageLayout.table}
         isLoading={isLoading}
         rowIndexKey="id"
         columns={[
           {
-            title: 'Grant ID',
+            title: <DynamicT forKey="winamz.col_grant_id" />,
             dataIndex: 'id',
-            render: (_, grant) => (
+            colSpan: 3,
+            render: (grant) => (
               <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{grant.id}</span>
             ),
           },
           {
-            title: 'Agent ID',
+            title: <DynamicT forKey="winamz.col_agent_id" />,
             dataIndex: 'agentId',
-            render: (_, grant) => (
+            colSpan: 3,
+            render: (grant) => (
               <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{grant.agentId}</span>
             ),
           },
           {
-            title: 'User ID',
+            title: <DynamicT forKey="winamz.col_user_id" />,
             dataIndex: 'userId',
-            render: (_, grant) => (
+            colSpan: 3,
+            render: (grant) => (
               <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{grant.userId}</span>
             ),
           },
           {
-            title: 'Scopes',
+            title: <DynamicT forKey="winamz.col_scopes" />,
             dataIndex: 'grantedScopes',
-            render: (_, grant) => (
+            colSpan: 2,
+            render: (grant) => (
               <div style={{ fontSize: 12 }}>{grant.grantedScopes.join(', ') || '—'}</div>
             ),
           },
           {
-            title: 'Status',
+            title: <DynamicT forKey="winamz.col_status" />,
             dataIndex: 'status',
-            render: (_, grant) => (
+            colSpan: 2,
+            render: (grant) => (
               <Tag type="state" status={grant.revokedAt ? 'error' : 'success'}>
                 {grant.revokedAt ? 'Revoked' : 'Active'}
               </Tag>
             ),
           },
           {
-            title: 'Actions',
+            title: <DynamicT forKey="winamz.col_actions" />,
             dataIndex: 'actions',
-            render: (_, grant) => {
+            colSpan: 3,
+            render: (grant) => {
               if (grant.revokedAt) {
                 return (
                   <span style={{ fontSize: 12, color: '#888' }}>
-                    Revoked {new Date(grant.revokedAt).toLocaleDateString()}
+                    {new Date(grant.revokedAt).toLocaleDateString()}
                   </span>
                 );
               }
@@ -156,15 +155,28 @@ function WinamzGrants() {
               return (
                 <Button
                   size="small"
-                  title="Revoke (Kill Switch)"
+                  title="winamz.action_revoke"
                   type="danger"
-                  onClick={() => { void handleRevoke(grant.id); }}
+                  onClick={() => {
+                    void handleRevoke(grant.id);
+                  }}
                 />
               );
             },
           },
         ]}
         rowGroups={[{ key: 'grants', data: filteredGrants }]}
+        filter={
+          <Search
+            defaultValue={keyword}
+            isClearable={Boolean(keyword)}
+            placeholder="Search by agent / user ID..."
+            onSearch={setKeyword}
+            onClearSearch={() => {
+              setKeyword('');
+            }}
+          />
+        }
         pagination={{
           page,
           totalCount: total,
