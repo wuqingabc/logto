@@ -1,3 +1,102 @@
+# winamz-logto — WinAMZ 团队专用 Logto 实例
+
+> 基于 Logto OSS v1.37.1 fork。**本文件顶部为 WinAMZ 项目配置说明，原 Logto 官方 README 在下方保留。**
+
+---
+
+## ⚙️ WinAMZ 端口规划
+
+| 服务 | 端口 | 说明 |
+|---|---|---|
+| **Logto API / OIDC** | **4000** | winamz-seller/launcher 连接此端口 |
+| **Logto Admin Console** | **4001** | 浏览器打开配置应用、权限、Organization |
+| Seller 后端 API | 4100 | winamz-seller |
+| Seller 前端 Dev | 4101 | winamz-seller |
+| Launcher 前端 Dev | 4200 | winamz-launcher |
+
+---
+
+## 🚀 快速启动
+
+### 前置依赖
+
+- Node.js ≥ 22
+- pnpm ≥ 9
+- PostgreSQL 17（需提前创建 `logto` 数据库）
+
+### 配置文件
+
+> ⚠️ **必须写在 `packages/core/.env`，不是根目录 `.env`！**
+> Logto 从 `packages/core/` 目录启动，只读该目录下的 `.env`。
+
+```bash
+# 创建 logto 数据库
+createdb logto   # macOS Homebrew
+# 或：psql -c "CREATE DATABASE logto;"  # 有密码环境
+
+# 配置核心 .env
+cat > packages/core/.env << 'EOF'
+DB_URL=postgres://your_user:your_password@127.0.0.1:5432/logto
+PORT=4000
+ADMIN_PORT=4001
+EOF
+
+# macOS 无密码本地用户示例：
+# DB_URL=postgres://yourmacuser@127.0.0.1:5432/logto
+```
+
+### 安装并启动
+
+```bash
+pnpm install
+NODE_ENV=production pnpm start
+
+# ✅ API/OIDC:  http://localhost:4000
+# ✅ Admin UI:  http://localhost:4001
+```
+
+---
+
+## 🔑 在 Admin Console 配置 winamz-seller
+
+打开 **http://localhost:4001** 完成以下配置（`pnpm setup` in winamz-seller 会自动完成）：
+
+### 1. 创建 SPA 应用
+
+| 字段 | 值 |
+|---|---|
+| 类型 | Single Page App |
+| App ID | `winamz-seller-spa` |
+| Redirect URI | `http://localhost:4101/callback` |
+| Post sign-out URI | `http://localhost:4101` |
+
+### 2. 创建 M2M 应用
+
+| 字段 | 值 |
+|---|---|
+| 类型 | Machine-to-Machine |
+| App ID | `winamz-seller-m2m` |
+| 权限 | Management API 所有 scope |
+
+### 3. 创建 Organization
+
+- Organizations → Create → 记录 **Organization ID**
+- 该 ID 在 winamz-seller 数据库的 `enterprises.logto_org_id` 字段中使用
+
+---
+
+## 相关仓库
+
+| 仓库 | 说明 |
+|---|---|
+| `../winamz-seller` | 主产品（端口 4100/4101） |
+| `../winamz-launcher` | SSO 启动器（端口 4200） |
+
+---
+
+<!-- 以下为原 Logto 官方 README -->
+
+
 <p align="center">
   <a href="https://logto.io/?utm_source=github&utm_medium=readme" target="_blank" align="center" alt="Go to Logto website">
     <picture>
