@@ -1,0 +1,5051 @@
+From e126ae233caf58ae0e0a55cae9ef150b5b5fc704 Mon Sep 17 00:00:00 2001
+From: wuqingabc <wuqingabc@hotmail.com>
+Date: Thu, 12 Mar 2026 08:18:08 +0800
+Subject: [PATCH 4/9] [winamz] feat: add AgentDetails page, i18n support,
+ Chinese docs, and FK migration
+
+- Add AgentDetails page with edit form, status actions, and delete
+- Add CreateAgentModal component with org/user search dropdowns
+- Internationalize all WinAMZ UI with winamz.ts phrase file
+- Localize docs to Chinese with AI-readable navigation breadcrumbs
+- Add standard Logto integration guide and quickstart roadmap
+- Add winamz-002 FK constraints migration (CASCADE/SET NULL)
+- Fix backend agent validation and route registration
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+---
+ docs/README.md                                |  83 +++
+ docs/integration/audit-log.md                 | 338 +++++++---
+ docs/integration/kill-switch.md               | 152 +++--
+ docs/integration/logto-setup.md               | 632 ++++++++++++++++++
+ docs/integration/org-agent.md                 | 301 +++++++--
+ docs/integration/overview.md                  | 126 +++-
+ docs/integration/personal-agent.md            | 350 ++++++++--
+ docs/integration/quickstart.md                | 266 ++++++++
+ docs/prd.md                                   | 279 +++++---
+ docs/upgrade-guide.md                         | 136 ++--
+ .../src/hooks/use-console-routes/index.tsx    |   3 +-
+ .../use-console-routes/routes/winamz.tsx      |   6 +
+ .../console/src/pages/winamz/AgentDetails.tsx | 300 +++++++++
+ packages/console/src/pages/winamz/Agents.tsx  | 139 +++-
+ packages/console/src/pages/winamz/Audit.tsx   |  84 +--
+ packages/console/src/pages/winamz/Grants.tsx  |  96 +--
+ .../winamz/components/CreateAgentModal.tsx    | 211 ++++++
+ packages/core/src/routes/winamz/agents.ts     |  22 +-
+ .../en/translation/admin-console/index.ts     |   4 +
+ .../en/translation/admin-console/tabs.ts      |   4 +
+ .../en/translation/admin-console/winamz.ts    |  79 +++
+ .../winamz-002-add-fk-constraints.ts          |  31 +
+ pnpm-lock.yaml                                | 146 ++--
+ 23 files changed, 3165 insertions(+), 623 deletions(-)
+ create mode 100644 docs/README.md
+ create mode 100644 docs/integration/logto-setup.md
+ create mode 100644 docs/integration/quickstart.md
+ create mode 100644 packages/console/src/pages/winamz/AgentDetails.tsx
+ create mode 100644 packages/console/src/pages/winamz/components/CreateAgentModal.tsx
+ create mode 100644 packages/phrases/src/locales/en/translation/admin-console/winamz.ts
+ create mode 100644 packages/schemas/src/migrations/winamz-002-add-fk-constraints.ts
+
+diff --git a/docs/README.md b/docs/README.md
+new file mode 100644
+index 000000000..a93174558
+--- /dev/null
++++ b/docs/README.md
+@@ -0,0 +1,83 @@
++# WinAMZ 文档索引
++
++> **AI 读取说明**：本文件是所有文档的入口。请按照下方「推荐阅读顺序」依次读取文件，每个文件头部均标注了当前位置（如 `[文档 3/9]`）和前后文件链接，确保上下文连贯。
++
++---
++
++## 推荐阅读顺序
++
++### 第一阶段：了解产品
++
++```
++① docs/README.md                          ← 当前文件，入口索引
++② docs/prd.md                             ← 产品设计：功能模块、DB 结构、API 速览
++```
++
++### 第二阶段：Logto 标准接入（必读基础）
++
++```
++③ docs/integration/overview.md            ← 两种接入场景对比、服务端点
++④ docs/integration/logto-setup.md         ← Logto 标准接入全面指南
++                                              用户登录 / API 保护 / M2M / Organization
++```
++
++### 第三阶段：WinAMZ AI Agent 接入
++
++```
++⑤ docs/integration/quickstart.md          ← 接入全景图：Logto 基础 → AI Agent 叠加
++⑥ docs/integration/personal-agent.md      ← 个人 Agent（员工委托）完整流程
++⑦ docs/integration/org-agent.md           ← 企业 Agent（M2M）完整流程
++⑧ docs/integration/kill-switch.md         ← Kill Switch：紧急撤销 API 参考
++⑨ docs/integration/audit-log.md           ← 审计日志：写入与查询 API 参考
++```
++
++### 维护参考（开发者/运维）
++
++```
++  docs/upgrade-guide.md                   ← Logto 上游升级操作流程
++```
++
++---
++
++## 文档依赖关系
++
++```
++README.md (入口)
++    │
++    ├─▶ prd.md
++    │       └─ 产品背景、核心概念模型
++    │
++    └─▶ integration/
++            │
++            ├─▶ overview.md
++            │       └─ 两种场景对比、端点速查
++            │
++            ├─▶ logto-setup.md          ← ⚠️ 先读此文，再读下方所有文档
++            │       ├─ 前端 SDK 接入（React/Vue/Next.js）
++            │       ├─ 后端 API 保护（jwtVerify 中间件）
++            │       ├─ M2M 认证（Client Credentials）
++            │       └─ Organization 多租户
++            │
++            ├─▶ quickstart.md           ← 两阶段接入路线图 + 代码清单
++            │       ├─ 依赖：logto-setup.md（阶段一）
++            │       └─ 引申：personal-agent.md / org-agent.md（阶段二）
++            │
++            ├─▶ personal-agent.md       ← 依赖：logto-setup.md + quickstart.md
++            ├─▶ org-agent.md            ← 依赖：logto-setup.md + quickstart.md
++            ├─▶ kill-switch.md          ← 依赖：personal-agent.md 或 org-agent.md
++            └─▶ audit-log.md            ← 依赖：quickstart.md
++```
++
++---
++
++## 按角色选择入口
++
++| 你的角色 | 建议阅读路径 |
++|----------|-------------|
++| **产品/架构师** | README → prd.md → overview.md |
++| **前端开发者** | logto-setup.md §二（前端 SDK）→ quickstart.md |
++| **后端 API 开发者** | logto-setup.md §三（API 保护）→ quickstart.md → personal-agent.md |
++| **DevOps / 运维** | prd.md §配置 → upgrade-guide.md |
++| **安全工程师** | prd.md §F3 → kill-switch.md → audit-log.md |
++| **AI Agent 开发者** | logto-setup.md §四（M2M）→ org-agent.md 或 personal-agent.md |
++| **AI 系统（自动读取）** | 按上方①–⑨顺序完整读取 |
+diff --git a/docs/integration/audit-log.md b/docs/integration/audit-log.md
+index 237a38efb..2b3cfa69e 100644
+--- a/docs/integration/audit-log.md
++++ b/docs/integration/audit-log.md
+@@ -1,126 +1,280 @@
+-# Audit Log API Reference
++> **[文档 9/9]** 上一篇：[Kill Switch API](./kill-switch.md) → 本系列文档已读完
++> 前置依赖：[文档 5/9 quickstart.md](./quickstart.md)（需理解 M2M Token 获取方式）
+ 
+-## Query Audit Logs
++# 审计日志 API 参考
+ 
+-```bash
+-# Query all operations by a specific agent
+-GET /api/winamz/audit?agent_id={agentId}&from=2026-01-01&to=2026-12-31
++WinAMZ 审计日志分为两类：
++- **系统自动写入**：Agent 生命周期事件（注册、审批、挂起）和委托事件（授权、撤销）
++- **下游系统主动上报**：具体业务操作（Agent 代替用户执行了什么操作）
+ 
+-# Query all agents that have acted on behalf of a specific user
+-GET /api/winamz/audit?user_id={userId}&event_type=agent_action
++---
+ 
+-# Query all Kill Switch operations for an organization
+-GET /api/winamz/audit?org_id={orgId}&event_type=grant_revoked
++## 查询审计日志
+ 
+-# Pagination
+-GET /api/winamz/audit?page=1&page_size=20
+ ```
++GET /api/winamz/audit
++Authorization: Bearer $M2M_TOKEN
++```
++
++**查询参数：**
++
++| 参数 | 类型 | 说明 |
++|------|------|------|
++| `agent_id` | string | 按 Agent ID 过滤 |
++| `user_id` | string | 按用户 ID 过滤（查看某员工被哪些 Agent 代理操作过）|
++| `org_id` | string | 按组织 ID 过滤 |
++| `event_type` | string | 按事件类型过滤（见下方事件类型表）|
++| `from` | ISO 8601 | 开始时间，例如 `2026-01-01T00:00:00Z` |
++| `to` | ISO 8601 | 结束时间 |
++| `page` | number | 页码，默认 1 |
++| `page_size` | number | 每页条数，默认 20，最大 100 |
++
++**常用查询示例：**
+ 
+-**Query Parameters:**
++```bash
++# 查询某 Agent 的所有操作记录
++GET /api/winamz/audit?agent_id=openclaw-agent-id&page=1&page_size=50
++
++# 查询某员工被代理操作的所有记录（追溯员工行为）
++GET /api/winamz/audit?user_id=zhangsan-user-id&event_type=agent_action
+ 
+-| Parameter | Type | Description |
+-|-----------|------|-------------|
+-| `agent_id` | string | Filter by agent ID |
+-| `user_id` | string | Filter by user ID |
+-| `org_id` | string | Filter by organization ID |
+-| `event_type` | string | Filter by event type |
+-| `from` | ISO 8601 date | Start time |
+-| `to` | ISO 8601 date | End time |
+-| `page` | number | Page number (default: 1) |
+-| `page_size` | number | Page size (default: 20, max: 100) |
++# 查询某组织的所有 Kill Switch 操作（合规审查）
++GET /api/winamz/audit?org_id=company-org-id&event_type=grant_revoked
++
++# 查询某时间段内的所有审批事件
++GET /api/winamz/audit?event_type=agent_approved&from=2026-01-01T00:00:00Z&to=2026-03-31T23:59:59Z
++```
+ 
+-**Response Example:**
++**响应示例：**
+ ```json
+-{
+-  "total": 42,
+-  "data": [
+-    {
+-      "id": "abc123",
+-      "event_type": "agent_action",
+-      "agent_id": "openclaw-agent-id",
+-      "agent_name": "OpenClaw v2.1",
+-      "user_id": "zhangsan-user-id",
+-      "user_name": "Zhang San",
+-      "org_id": "company-org-id",
+-      "resource": "erp:order:PO-2026-001",
+-      "metadata": { "action": "create", "amount": 5000 },
+-      "created_at": "2026-03-11T09:30:00Z"
+-    }
+-  ]
+-}
++[
++  {
++    "id": "log-abc123",
++    "eventType": "agent_action",
++    "agentId": "openclaw-agent-id",
++    "userId": "zhangsan-user-id",
++    "orgId": "company-org-id",
++    "resource": "post:/purchase-orders",
++    "metadata": {
++      "method": "POST",
++      "path": "/purchase-orders",
++      "statusCode": 201,
++      "amount": 5000
++    },
++    "createdAt": "2026-03-11T09:30:00Z"
++  }
++]
+ ```
+ 
+----
++响应头中包含分页信息：
++```
++Total-Number: 42
++```
+ 
+-## Record Audit Event
++---
+ 
+-Downstream applications should call this API after each agent operation to record the event.
++## 下游系统写入审计事件
+ 
+-```bash
++```
+ POST /api/winamz/audit
+ Authorization: Bearer $M2M_TOKEN
+ Content-Type: application/json
++```
+ 
+-{
+-  "event_type": "agent_action",
+-  "agent_id": "openclaw-agent-id",
+-  "user_id": "zhangsan-user-id",
+-  "org_id": "company-org-id",
+-  "resource": "erp:order:PO-2026-001",
+-  "metadata": {
+-    "action": "create",
+-    "method": "POST",
+-    "path": "/purchase-orders",
+-    "amount": 5000,
+-    "status_code": 201
+-  }
+-}
++**请求体：**
++
++| 字段 | 类型 | 必填 | 说明 |
++|------|------|------|------|
++| `event_type` | string | ✅ | 事件类型（建议使用 `agent_action`）|
++| `agent_id` | string | ✅ | 执行操作的 Agent ID |
++| `user_id` | string | 个人 Agent 必填 | 被代理的用户 ID |
++| `org_id` | string | 推荐 | 所属组织 ID |
++| `resource` | string | 推荐 | 操作的资源标识，如 `post:/orders` |
++| `metadata` | object | 推荐 | 扩展字段（状态码、数据量等）|
++
++**请求示例：**
++```bash
++curl -X POST http://your-host:4001/api/winamz/audit \
++  -H "Authorization: Bearer $M2M_TOKEN" \
++  -H "Content-Type: application/json" \
++  -d '{
++    "event_type": "agent_action",
++    "agent_id": "openclaw-agent-id",
++    "user_id": "zhangsan-user-id",
++    "org_id": "company-org-id",
++    "resource": "post:/purchase-orders",
++    "metadata": {
++      "method": "POST",
++      "path": "/purchase-orders",
++      "status_code": 201,
++      "order_id": "PO-2026-001",
++      "amount": 5000
++    }
++  }'
+ ```
+ 
+ ---
+ 
+-## Event Types
++## 事件类型完整列表
+ 
+-| Event Type | Description | Key Fields |
+-|------------|-------------|------------|
+-| `agent_registered` | New agent registered | `agent_id`, `org_id` |
+-| `agent_approved` | Agent approved by admin | `agent_id`, `actor_id` |
+-| `agent_suspended` | Agent suspended | `agent_id`, `actor_id` |
+-| `grant_created` | User authorized agent | `agent_id`, `user_id` |
+-| `grant_revoked` | Agent authorization revoked | `agent_id`, `user_id`, `actor_id` |
+-| `agent_action` | Agent performed operation on behalf of user | `agent_id`, `user_id`, `resource` |
+-| `token_issued` | Token issued to agent | `agent_id` |
++| 事件类型 | 触发方 | 核心字段 | 说明 |
++|----------|--------|----------|------|
++| `agent_registered` | WinAMZ 系统 | `agent_id`, `org_id` | 新 Agent 注册提交审批 |
++| `agent_approved` | WinAMZ 系统 | `agent_id`, `actor_id` | 管理员批准 Agent |
++| `agent_suspended` | WinAMZ 系统 | `agent_id`, `actor_id` | Agent 被挂起 |
++| `grant_created` | WinAMZ 系统 | `agent_id`, `user_id` | 用户完成 OAuth 同意，委托创建 |
++| `grant_revoked` | WinAMZ 系统 | `agent_id`, `user_id`, `actor_id` | Kill Switch 触发，委托撤销 |
++| `agent_action` | **下游系统上报** | `agent_id`, `user_id`, `resource` | Agent 代替用户执行了业务操作 |
++| `token_issued` | WinAMZ 系统 | `agent_id` | 向 Agent 颁发令牌 |
+ 
+ ---
+ 
+-## Downstream Application Integration Example
++## 推荐：下游系统审计中间件
+ 
++将审计逻辑封装为 Express 中间件，所有请求自动上报：
++
++**Node.js / Express：**
+ ```javascript
+-// Audit log middleware — runs after request completes
+-app.use(async (req, res, next) => {
+-  await next();
++import { createRemoteJWKSet, jwtVerify } from 'jose';
+ 
+-  if (req.isAgent && req.agentId) {
+-    // Non-blocking audit log recording
+-    fetch('http://localhost:4001/api/winamz/audit', {
++// 复用 M2M token（不要每次请求都重新获取）
++const winamzTokenCache = {
++  token: null,
++  expiresAt: 0,
++  async get() {
++    if (Date.now() < this.expiresAt - 60_000) return this.token;
++    const resp = await fetch('http://your-host:4001/oidc/token', {
+       method: 'POST',
+-      headers: {
+-        'Authorization': `Bearer ${process.env.WINAMZ_M2M_TOKEN}`,
+-        'Content-Type': 'application/json',
+-      },
+-      body: JSON.stringify({
+-        event_type: 'agent_action',
+-        agent_id: req.agentId,
+-        user_id: req.userId,
+-        org_id: req.orgId,
+-        resource: `${req.method.toLowerCase()}:${req.path}`,
+-        metadata: {
+-          method: req.method,
+-          path: req.path,
+-          status_code: res.statusCode,
+-        },
++      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
++      body: new URLSearchParams({
++        grant_type: 'client_credentials',
++        client_id: process.env.WINAMZ_M2M_CLIENT_ID,
++        client_secret: process.env.WINAMZ_M2M_CLIENT_SECRET,
++        resource: 'https://your-host:4001/api',
++        scope: 'all',
+       }),
+-    }).catch(console.error); // Don't let audit log failure affect business
++    });
++    const { access_token, expires_in } = await resp.json();
++    this.token = access_token;
++    this.expiresAt = Date.now() + expires_in * 1000;
++    return this.token;
+   }
+-});
++};
++
++// 审计中间件（在 response 发送后非阻塞执行）
++function winamzAuditMiddleware(req, res, next) {
++  // 保存原始 send 方法
++  const originalSend = res.send.bind(res);
++
++  res.send = function(body) {
++    originalSend(body);
++
++    // 仅在 Agent 操作时上报审计日志
++    if (req.isAgent && req.agentId) {
++      winamzTokenCache.get()
++        .then(token => fetch('http://your-host:4001/api/winamz/audit', {
++          method: 'POST',
++          headers: {
++            'Authorization': `Bearer ${token}`,
++            'Content-Type': 'application/json',
++          },
++          body: JSON.stringify({
++            event_type: 'agent_action',
++            agent_id: req.agentId,
++            user_id: req.userId,           // 个人 Agent 必须有
++            org_id: req.orgId,
++            resource: `${req.method.toLowerCase()}:${req.path}`,
++            metadata: {
++              method: req.method,
++              path: req.path,
++              status_code: res.statusCode,
++              query: req.query,
++            },
++          }),
++        }))
++        .catch(err => console.error('[WinAMZ Audit] Failed to log:', err.message));
++    }
++
++    return res;
++  };
++
++  next();
++}
++
++// 注册中间件（在身份验证中间件之后）
++app.use(verifyAgentToken);    // 先验证 token，设置 req.isAgent 等字段
++app.use(winamzAuditMiddleware); // 再注册审计中间件
++```
++
++**Python / FastAPI：**
++```python
++import asyncio
++import httpx
++from starlette.middleware.base import BaseHTTPMiddleware
++
++class WinamzAuditMiddleware(BaseHTTPMiddleware):
++    def __init__(self, app, winamz_host: str, m2m_token_getter):
++        super().__init__(app)
++        self.winamz_host = winamz_host
++        self.get_m2m_token = m2m_token_getter
++
++    async def dispatch(self, request, call_next):
++        response = await call_next(request)
++
++        # 异步非阻塞写入审计日志
++        agent_id = getattr(request.state, "agent_id", None)
++        user_id = getattr(request.state, "user_id", None)
++
++        if agent_id:
++            asyncio.create_task(self._log_action(request, response, agent_id, user_id))
++
++        return response
++
++    async def _log_action(self, request, response, agent_id, user_id):
++        try:
++            token = await self.get_m2m_token()
++            async with httpx.AsyncClient() as client:
++                await client.post(
++                    f"{self.winamz_host}/api/winamz/audit",
++                    headers={"Authorization": f"Bearer {token}"},
++                    json={
++                        "event_type": "agent_action",
++                        "agent_id": agent_id,
++                        "user_id": user_id,
++                        "resource": f"{request.method.lower()}:{request.url.path}",
++                        "metadata": {
++                            "method": request.method,
++                            "path": str(request.url.path),
++                            "status_code": response.status_code,
++                        },
++                    },
++                )
++        except Exception as e:
++            print(f"[WinAMZ Audit] Failed: {e}")
++```
++
++---
++
++## 合规场景示例
++
++**场景：季度合规审计，导出所有 Agent 操作记录**
++```bash
++# 分页导出（每次 100 条）
++for page in 1 2 3 4 5; do
++  curl -s "http://your-host:4001/api/winamz/audit?\
++    from=2026-01-01T00:00:00Z&\
++    to=2026-03-31T23:59:59Z&\
++    page=${page}&\
++    page_size=100" \
++    -H "Authorization: Bearer $M2M_TOKEN" >> audit_q1_2026.jsonl
++done
++```
++
++**场景：员工离职后追溯该员工所有被代理操作**
++```bash
++curl "http://your-host:4001/api/winamz/audit?\
++  user_id=departing-employee-id&\
++  event_type=agent_action&\
++  page_size=100" \
++  -H "Authorization: Bearer $M2M_TOKEN"
+ ```
+diff --git a/docs/integration/kill-switch.md b/docs/integration/kill-switch.md
+index 88654dfb0..2c27f97a4 100644
+--- a/docs/integration/kill-switch.md
++++ b/docs/integration/kill-switch.md
+@@ -1,94 +1,164 @@
+-# Kill Switch API Reference
++> **[文档 8/9]** 上一篇：[企业 Agent 接入](./org-agent.md) → 下一篇：[审计日志 API](./audit-log.md)
++> 前置依赖：已完成 personal-agent.md 或 org-agent.md 接入
+ 
+-## Revoke Personal Agent Authorization
++# Kill Switch API 参考
++
++Kill Switch 是 WinAMZ 的核心安全能力，允许管理员在发现风险时立即终止 AI Agent 的授权。
++
++---
++
++## 撤销个人 Agent 的委托授权
+ 
+ ```bash
+-# Admin invokes Kill Switch (takes effect immediately)
+-curl -X POST http://localhost:4001/api/winamz/grants/{grantId}/revoke \
++# 单条撤销（按 Grant ID）
++curl -X POST http://your-host:4001/api/winamz/grants/{grantId}/revoke \
+   -H "Authorization: Bearer $ADMIN_M2M_TOKEN" \
+   -H "Content-Type: application/json" \
+-  -d '{ "reason": "Employee resignation" }'
++  -d '{ "reason": "员工离职申请" }'
+ ```
+ 
+-**Effects:**
+-1. `winamz_agent_grants.revoked_at` is set
+-2. All Logto Grants for that user on that Client are deleted
+-3. Agent's Refresh Token is invalidated, cannot renew
+-4. Existing Access Tokens remain valid until expiry (default 1 hour)
+-   → For immediate invalidation, also call the suspend endpoint
++**生效范围：**
++1. `winamz_agent_grants.revoked_at` 写入当前时间
++2. Logto 中该用户对该 Client 的所有 Grant 被删除（Refresh Token 立即失效）
++3. 下次 Access Token 到期后无法续期
++4. 现有 Access Token 在到期前仍有效（默认 1 小时）
+ 
+-**Response:**
++**响应：**
+ ```json
+ {
+-  "success": true,
++  "id": "grant-id",
+   "revokedAt": "2026-03-11T09:30:00Z",
+-  "reason": "Employee resignation"
++  "reason": "员工离职申请"
+ }
+ ```
+ 
+ ---
+ 
+-## Immediately Suspend Agent Account
++## 立即挂起 Agent 账号（硬停）
++
++当需要立即使所有令牌失效（包括未到期的 Access Token）时：
+ 
+ ```bash
+-# Suspend personal agent
+-curl -X POST http://localhost:4001/api/winamz/agents/{agentId}/suspend \
++# 挂起 Agent（适用于 personal 和 org 两种类型）
++curl -X POST http://your-host:4001/api/winamz/agents/{agentId}/suspend \
+   -H "Authorization: Bearer $ADMIN_M2M_TOKEN"
+ ```
+ 
+-**Effects:**
+-- For personal agents: Logto user account set to `isSuspended=true`, all tokens immediately invalid
+-- For org agents: Logto M2M application secret revoked, cannot obtain new tokens
++**生效范围：**
++- **个人 Agent**：Logto 用户账号设为 `isSuspended=true`，所有令牌立即失效
++- **企业 Agent**：吊销 Logto M2M 应用 Secret，无法获取新令牌（现有令牌到期前仍有效）
++
++> 如需对企业 Agent 也实现即时失效，需同时删除 Logto 中对应 M2M 应用的所有 Secret。
+ 
+-**Response:**
++**响应：**
+ ```json
+ {
+-  "success": true,
+-  "agentId": "agent-id",
++  "id": "agent-id",
+   "status": "suspended",
+-  "suspendedAt": "2026-03-11T09:30:00Z"
++  "updatedAt": "2026-03-11T09:30:00Z"
+ }
+ ```
+ 
+ ---
+ 
+-## Restore Agent
++## 恢复 Agent
+ 
+ ```bash
+-# Restore a previously suspended agent
+-curl -X POST http://localhost:4001/api/winamz/agents/{agentId}/restore \
++curl -X POST http://your-host:4001/api/winamz/agents/{agentId}/restore \
+   -H "Authorization: Bearer $ADMIN_M2M_TOKEN"
+ ```
+ 
++恢复后 Agent 状态变为 `approved`，但：
++- 个人 Agent：员工需重新完成 OAuth 授权流程
++- 企业 Agent：需要在 Logto 中重新生成 client_secret
++
+ ---
+ 
+-## Emergency Batch Operations
++## 批量操作
+ 
+-### Revoke all agents for an organization
++### 按用户批量撤销（员工离职场景）
+ 
+ ```bash
+-# Revoke all agents under an organization (emergency use)
+-curl -X POST http://localhost:4001/api/winamz/agents/emergency-revoke \
++# 撤销某员工名下所有 Agent 的委托授权
++curl -X POST http://your-host:4001/api/winamz/grants/revoke-by-user \
+   -H "Authorization: Bearer $ADMIN_M2M_TOKEN" \
+   -H "Content-Type: application/json" \
+-  -d '{ "org_id": "your-org-id", "reason": "Security incident" }'
++  -d '{
++    "userId": "zhangsan-user-id",
++    "reason": "员工离职，人力资源部执行"
++  }'
++```
++
++**响应：**
++```json
++{
++  "revokedCount": 3,
++  "grants": ["grant-id-1", "grant-id-2", "grant-id-3"]
++}
+ ```
+ 
+-### Revoke all agents for a user
++### 按组织紧急撤销（安全事件应急）
+ 
+ ```bash
+-# Revoke all agent authorizations for a specific user
+-curl -X POST http://localhost:4001/api/winamz/grants/revoke-by-user \
++# 撤销某组织下所有 Agent 的委托授权
++curl -X POST http://your-host:4001/api/winamz/agents/emergency-revoke \
+   -H "Authorization: Bearer $ADMIN_M2M_TOKEN" \
+   -H "Content-Type: application/json" \
+-  -d '{ "user_id": "user-id", "reason": "Account security review" }'
++  -d '{
++    "orgId": "company-org-id",
++    "reason": "发现数据泄露事件，紧急处置"
++  }'
+ ```
+ 
+ ---
+ 
+-## Security Considerations
++## 完整硬停流程（个人 Agent，即时生效）
++
++如需对个人 Agent 实现即时停止（Refresh Token + Access Token 全部失效）：
++
++```bash
++# ① 撤销委托（使 Refresh Token 失效）
++curl -X POST http://your-host:4001/api/winamz/grants/{grantId}/revoke \
++  -H "Authorization: Bearer $ADMIN_M2M_TOKEN" \
++  -d '{ "reason": "安全事件" }'
++
++# ② 挂起 Agent（使现有 Access Token 立即失效）
++curl -X POST http://your-host:4001/api/winamz/agents/{agentId}/suspend \
++  -H "Authorization: Bearer $ADMIN_M2M_TOKEN"
++```
++
++---
++
++## 如何获取 ADMIN_M2M_TOKEN
++
++管理 API 需要 Logto Management API 权限的 M2M Token：
++
++```bash
++# 1. 在 Logto Console 创建 M2M 应用，授予 Management API 权限
++# 2. 获取 client_id 和 client_secret
++# 3. 用 Client Credentials 获取 token
++
++curl -X POST http://your-host:4001/oidc/token \
++  -H "Content-Type: application/x-www-form-urlencoded" \
++  -d "grant_type=client_credentials" \
++  -d "client_id=$M2M_CLIENT_ID" \
++  -d "client_secret=$M2M_CLIENT_SECRET" \
++  -d "resource=https://your-host:4001/api" \
++  -d "scope=all"
++```
++
++> 参考：[Logto Management API 认证文档](https://docs.logto.io/docs/recipes/interact-with-management-api/)
++
++---
++
++## 安全建议
++
++| 建议 | 原因 |
++|------|------|
++| Access Token TTL ≤ 1 小时 | 缩短 Kill Switch 后的残留风险窗口 |
++| 高敏感场景 TTL ≤ 15 分钟 | 例如财务操作、数据导出等 |
++| 所有 Kill Switch 操作必须记录审计 | WinAMZ 自动写入 `winamz_audit_logs` |
++| 敏感操作二次确认 | Admin Console 已内置确认弹窗 |
++| M2M Admin Token 定期轮转 | 避免凭证长期有效带来的风险 |
+ 
+-- All Kill Switch operations are recorded in `winamz_audit_logs`
+-- Admin operations require Management API M2M token authentication
+-- Recommend setting short `access_token` expiry (≤ 1 hour) to reduce residual risk window
+-- For high-sensitivity scenarios, consider setting `access_token` to ≤ 15 minutes
++> 参考：[Logto 令牌生命周期配置](https://docs.logto.io/docs/references/openid-connect/)
+diff --git a/docs/integration/logto-setup.md b/docs/integration/logto-setup.md
+new file mode 100644
+index 000000000..58a74b444
+--- /dev/null
++++ b/docs/integration/logto-setup.md
+@@ -0,0 +1,632 @@
++> **[文档 4/9]** 上一篇：[接入总览](./overview.md) → 下一篇：[快速接入指南](./quickstart.md)
++> ⚠️ **本文是后续所有 AI Agent 接入文档的前置依赖，请务必先读完本文。**
++
++# Logto 标准接入指南
++
++本文档介绍如何将你的业务系统接入 WinAMZ（基于 Logto）的身份认证体系。
++**阅读本文是接入 AI Agent 功能的前提**，AI Agent 的令牌验证、M2M 通信、组织权限均建立在本文的基础之上。
++
++> 官方文档：https://docs.logto.io
++> 本文 WinAMZ 实例地址示例：`http://your-host:4001`（OIDC）、`http://your-host:4002`（Admin Console）
++
++---
++
++## 一、核心概念速览
++
++### Logto 是什么
++
++Logto 是一个开源的身份认证服务（Identity Provider，IdP），基于 **OIDC（OpenID Connect）** 和 **OAuth 2.0** 标准协议。它负责：
++
++- 管理用户账号、登录/注册流程
++- 向应用颁发 **JWT 访问令牌**（Access Token）
++- 管理 API 资源的权限（Scopes）
++- 支持多租户组织（Organizations）
++- 支持 M2M（机器对机器）服务间认证
++
++### 关键术语
++
++| 术语 | 说明 |
++|------|------|
++| **Application（应用）** | 在 Logto 中注册的客户端，对应一个 `client_id` |
++| **API Resource** | 受保护的 API 端点，对应一个 `audience`（如 `https://api.your-company.com`）|
++| **Scope（权限范围）** | API 的细粒度权限，如 `erp:read`、`erp:write` |
++| **Organization（组织）** | 多租户单元，代表一个企业/团队 |
++| **Access Token** | 短期令牌（默认 1 小时），用于访问 API |
++| **Refresh Token** | 长期令牌，用于续期 Access Token（需 `offline_access` scope）|
++| **M2M Application** | 用于服务间通信的无用户应用，使用 Client Credentials 流程 |
++| **JWKS** | JSON Web Key Set，Logto 的公钥集，用于验证 JWT 签名 |
++
++> 参考：[Logto 核心概念](https://docs.logto.io/docs/references/core/)
++
++---
++
++## 二、前端 Web 应用接入（用户登录）
++
++适用于需要用户登录的 Web 应用（React、Vue、Angular 等）。
++
++### 2.1 在 Admin Console 创建应用
++
++1. 打开 `http://your-host:4002` → **Applications** → **Create application**
++2. 选择应用类型：
++   - `Single page app`（React、Vue 等 SPA）
++   - `Traditional web`（Next.js SSR、Express 等服务端渲染）
++   - `Native`（iOS、Android 等移动端）
++3. 填写：
++   - **Name**：你的应用名，例如 `ERP Web`
++   - **Redirect URIs**：登录成功后的回调地址，例如 `http://localhost:3000/callback`
++   - **Post sign-out redirect URIs**：登出后跳转地址，例如 `http://localhost:3000`
++4. 记录生成的 `App ID`（即 `client_id`）
++
++> 参考：[创建应用](https://docs.logto.io/docs/recipes/integrate-logto/)
++
++### 2.2 安装 Logto SDK
++
++```bash
++# React
++npm install @logto/react
++
++# Vue
++npm install @logto/vue
++
++# 原生 JS（无框架）
++npm install @logto/browser
++
++# Next.js
++npm install @logto/next
++
++# Node.js（服务端渲染）
++npm install @logto/node
++```
++
++### 2.3 React 集成示例
++
++```tsx
++// src/main.tsx
++import { LogtoProvider, LogtoConfig } from '@logto/react';
++
++const config: LogtoConfig = {
++  endpoint: 'http://your-host:4001',       // WinAMZ OIDC 端点
++  appId: 'your-app-id',                    // Admin Console 中的 App ID
++  resources: ['https://erp.your-company.com'],  // 你的 API 资源
++  scopes: ['erp:read', 'erp:write'],       // 需要的权限
++};
++
++ReactDOM.createRoot(document.getElementById('root')!).render(
++  <LogtoProvider config={config}>
++    <App />
++  </LogtoProvider>
++);
++```
++
++```tsx
++// src/App.tsx
++import { useLogto } from '@logto/react';
++
++function App() {
++  const { isAuthenticated, isLoading, signIn, signOut, getAccessToken } = useLogto();
++
++  if (isLoading) return <div>加载中...</div>;
++
++  if (!isAuthenticated) {
++    return (
++      <button onClick={() => signIn('http://localhost:3000/callback')}>
++        登录
++      </button>
++    );
++  }
++
++  // 获取访问令牌，用于调用后端 API
++  const callApi = async () => {
++    const token = await getAccessToken('https://erp.your-company.com');
++    const resp = await fetch('/api/orders', {
++      headers: { Authorization: `Bearer ${token}` },
++    });
++    return resp.json();
++  };
++
++  return (
++    <div>
++      <p>已登录</p>
++      <button onClick={callApi}>调用 API</button>
++      <button onClick={() => signOut('http://localhost:3000')}>退出</button>
++    </div>
++  );
++}
++```
++
++> 参考：[React SDK 文档](https://docs.logto.io/docs/recipes/integrate-logto/react/)
++
++### 2.4 处理登录回调
++
++```tsx
++// src/pages/Callback.tsx
++import { useHandleSignInCallback } from '@logto/react';
++import { useNavigate } from 'react-router-dom';
++
++function Callback() {
++  const navigate = useNavigate();
++  const { isLoading } = useHandleSignInCallback(() => {
++    navigate('/');  // 登录成功后跳转首页
++  });
++
++  return isLoading ? <div>处理登录中...</div> : null;
++}
++```
++
++### 2.5 获取用户信息
++
++```tsx
++import { useLogto } from '@logto/react';
++
++function UserProfile() {
++  const { fetchUserInfo } = useLogto();
++
++  const getUser = async () => {
++    const user = await fetchUserInfo();
++    console.log(user);
++    // {
++    //   sub: "user-id",
++    //   name: "张三",
++    //   email: "zhangsan@company.com",
++    //   picture: "https://...",
++    //   username: "zhangsan"
++    // }
++  };
++}
++```
++
++> 参考：[用户信息端点](https://docs.logto.io/docs/references/openid-connect/)
++
++---
++
++## 三、后端 API 接入（保护你的 API）
++
++适用于需要验证前端/Agent 令牌的后端服务。
++
++### 3.1 在 Admin Console 创建 API Resource
++
++1. 进入 **API Resources** → **Create API resource**
++2. 填写：
++   - **API name**：`ERP API`
++   - **API identifier**：`https://erp.your-company.com`（作为 `audience`，建议使用 URL 格式）
++3. 添加 Scopes（细粒度权限）：
++   - `erp:read` — 读取权限
++   - `erp:write` — 写入权限
++   - `erp:admin` — 管理权限
++4. 保存后，客户端在请求令牌时可通过 `resource` 参数指定此 API
++
++> 参考：[保护你的 API](https://docs.logto.io/docs/recipes/protect-your-api/)
++
++### 3.2 Token 结构说明
++
++用户通过 Logto 登录后获得的 Access Token（JWT）结构：
++
++```json
++{
++  "sub": "user-id",               // 用户唯一标识
++  "iss": "http://your-host:4001/oidc",
++  "aud": "https://erp.your-company.com",  // 目标 API（你配置的 API Identifier）
++  "scope": "erp:read erp:write",
++  "org_id": "company-org-id",     // 组织 ID（如果请求时携带了 organization_id）
++  "iat": 1741500000,
++  "exp": 1741503600               // 默认 1 小时后过期
++}
++```
++
++### 3.3 Node.js API 验证中间件
++
++```typescript
++// middleware/auth.ts
++import { createRemoteJWKSet, jwtVerify } from 'jose';
++import type { Request, Response, NextFunction } from 'express';
++
++// JWKS 全局缓存（自动处理密钥轮转）
++const JWKS = createRemoteJWKSet(
++  new URL('http://your-host:4001/oidc/jwks')
++);
++
++export async function requireAuth(req: Request, res: Response, next: NextFunction) {
++  const token = req.headers.authorization?.slice(7); // 去掉 "Bearer "
++
++  if (!token) {
++    return res.status(401).json({ error: '缺少认证令牌' });
++  }
++
++  try {
++    const { payload } = await jwtVerify(token, JWKS, {
++      issuer: 'http://your-host:4001/oidc',           // 必须与 Logto 颁发者一致
++      audience: 'https://erp.your-company.com',       // 必须与 API Identifier 一致
++    });
++
++    req.user = {
++      id: payload.sub!,
++      orgId: payload.org_id as string | undefined,
++      scopes: (payload.scope as string)?.split(' ') ?? [],
++    };
++
++    next();
++  } catch (err: any) {
++    return res.status(401).json({ error: '令牌验证失败', detail: err.message });
++  }
++}
++
++// 权限检查中间件
++export function requireScope(scope: string) {
++  return (req: Request, res: Response, next: NextFunction) => {
++    if (!req.user?.scopes.includes(scope)) {
++      return res.status(403).json({ error: `缺少权限：${scope}` });
++    }
++    next();
++  };
++}
++```
++
++**在路由中使用：**
++```typescript
++import express from 'express';
++import { requireAuth, requireScope } from './middleware/auth';
++
++const app = express();
++
++// 所有路由均需认证
++app.use(requireAuth);
++
++// 查询订单：需要 erp:read
++app.get('/orders', requireScope('erp:read'), async (req, res) => {
++  const orders = await db.orders.findMany({ where: { orgId: req.user.orgId } });
++  res.json(orders);
++});
++
++// 创建订单：需要 erp:write
++app.post('/orders', requireScope('erp:write'), async (req, res) => {
++  const order = await db.orders.create({
++    data: { ...req.body, createdBy: req.user.id },
++  });
++  res.status(201).json(order);
++});
++```
++
++### 3.4 Python FastAPI 验证示例
++
++```python
++# auth.py
++import os, httpx
++from jose import jwt, JWTError
++from fastapi import HTTPException, Depends
++from fastapi.security import HTTPBearer
++
++security = HTTPBearer()
++
++def get_jwks():
++    """获取 Logto JWKS 公钥（生产环境建议加缓存）"""
++    resp = httpx.get('http://your-host:4001/oidc/jwks')
++    return resp.json()
++
++async def get_current_user(credentials=Depends(security)):
++    try:
++        payload = jwt.decode(
++            credentials.credentials,
++            get_jwks(),
++            algorithms=['RS256', 'ES256'],
++            audience='https://erp.your-company.com',
++            issuer='http://your-host:4001/oidc',
++        )
++    except JWTError as e:
++        raise HTTPException(status_code=401, detail=str(e))
++
++    return {
++        'id': payload['sub'],
++        'org_id': payload.get('org_id'),
++        'scopes': payload.get('scope', '').split(),
++    }
++```
++
++### 3.5 OIDC Discovery 自动获取配置
++
++生产环境建议从 Discovery 端点自动获取 issuer、jwks_uri 等配置，而不是硬编码：
++
++```javascript
++// 一次性初始化（服务启动时执行）
++const discoveryUrl = 'http://your-host:4001/oidc/.well-known/openid-configuration';
++const { issuer, jwks_uri } = await fetch(discoveryUrl).then(r => r.json());
++
++const JWKS = createRemoteJWKSet(new URL(jwks_uri));
++// 此后用 issuer 和 JWKS 验证所有 token
++```
++
++> 参考：[OIDC Discovery 端点](https://docs.logto.io/docs/references/openid-connect/)
++
++---
++
++## 四、M2M（机器对机器）认证
++
++适用于后端服务之间的通信，不涉及用户登录，使用 **Client Credentials** 流程。
++
++### 4.1 创建 M2M 应用
++
++1. 进入 **Applications** → **Create application** → 选择 **Machine-to-machine**
++2. 填写 Name，例如 `Data Pipeline`
++3. 在 **Permissions** 标签页中：
++   - 添加需要访问的 **API Resource** 和对应 Scopes
++   - 如需调用 WinAMZ Management API，还需添加 Management API 权限
++4. 记录 `App ID`（`client_id`）和生成的 `App secret`（`client_secret`，只显示一次）
++
++> 参考：[M2M 机器对机器文档](https://docs.logto.io/docs/recipes/machine-to-machine/)
++
++### 4.2 获取 M2M Token
++
++```typescript
++// services/token.ts
++
++interface TokenCache {
++  value: string;
++  expiresAt: number;
++}
++
++const cache = new Map<string, TokenCache>();
++
++export async function getM2MToken(resource: string): Promise<string> {
++  const cacheKey = resource;
++  const cached = cache.get(cacheKey);
++
++  // 提前 60 秒续期
++  if (cached && Date.now() < cached.expiresAt - 60_000) {
++    return cached.value;
++  }
++
++  const response = await fetch('http://your-host:4001/oidc/token', {
++    method: 'POST',
++    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
++    body: new URLSearchParams({
++      grant_type: 'client_credentials',
++      client_id: process.env.M2M_CLIENT_ID!,
++      client_secret: process.env.M2M_CLIENT_SECRET!,
++      resource,                              // 目标 API 资源
++      scope: 'read write',                   // 按需填写
++    }),
++  });
++
++  if (!response.ok) {
++    throw new Error(`M2M token 获取失败: ${await response.text()}`);
++  }
++
++  const { access_token, expires_in } = await response.json();
++  cache.set(cacheKey, {
++    value: access_token,
++    expiresAt: Date.now() + expires_in * 1000,
++  });
++
++  return access_token;
++}
++```
++
++**调用内部服务：**
++```typescript
++// 调用另一个后端服务
++const token = await getM2MToken('https://inventory.your-company.com');
++const resp = await fetch('https://inventory.your-company.com/api/stock', {
++  headers: { Authorization: `Bearer ${token}` },
++});
++```
++
++**调用 Logto Management API：**
++```typescript
++// Management API 的 resource 固定为 Logto 服务本身的 API 地址
++const token = await getM2MToken('https://your-host:4001/api');
++const resp = await fetch('http://your-host:4001/api/users', {
++  headers: { Authorization: `Bearer ${token}` },
++});
++```
++
++> 参考：[Management API 使用文档](https://docs.logto.io/docs/recipes/interact-with-management-api/)
++
++---
++
++## 五、Organization（多租户组织）接入
++
++适用于 SaaS 平台或企业内需要多租户隔离的场景。
++
++### 5.1 Organization 的作用
++
++```
++Logto Organization 相当于一个"租户容器"：
++- 每个 Organization 有自己的成员列表
++- Organization Token 中携带 org_id，用于租户数据隔离
++- M2M 应用可以限定在某个 Organization 范围内获取令牌
++```
++
++### 5.2 创建组织
++
++**通过 Admin Console：**
++1. 进入 **Organizations** → **Create organization**
++2. 填写 Name，保存后获得 `organization_id`
++
++**通过 Management API：**
++```bash
++curl -X POST http://your-host:4001/api/organizations \
++  -H "Authorization: Bearer $ADMIN_M2M_TOKEN" \
++  -H "Content-Type: application/json" \
++  -d '{ "name": "Acme Corp", "description": "客户 A" }'
++```
++
++### 5.3 将用户添加到组织
++
++```bash
++# 将用户添加为组织成员
++curl -X POST http://your-host:4001/api/organizations/{orgId}/users \
++  -H "Authorization: Bearer $ADMIN_M2M_TOKEN" \
++  -H "Content-Type: application/json" \
++  -d '{ "userIds": ["user-id-1", "user-id-2"] }'
++```
++
++> 参考：[Organizations 文档](https://docs.logto.io/docs/recipes/organizations/)
++
++### 5.4 前端请求带 org_id 的 Token
++
++```typescript
++// 在请求 Token 时指定 organization_id
++const token = await getAccessToken('https://erp.your-company.com', {
++  organizationId: 'company-org-id',  // 指定当前操作所在的组织
++});
++
++// 生成的 Token 中将包含：
++// {
++//   "sub": "user-id",
++//   "org_id": "company-org-id",
++//   "scope": "erp:read erp:write"
++// }
++```
++
++### 5.5 后端按组织隔离数据
++
++```typescript
++app.get('/orders', requireAuth, async (req, res) => {
++  const { id: userId, orgId } = req.user;
++
++  if (!orgId) {
++    return res.status(403).json({ error: '当前操作需要指定组织上下文' });
++  }
++
++  // 只返回该组织的数据
++  const orders = await db.orders.findMany({
++    where: { orgId },
++  });
++
++  res.json(orders);
++});
++```
++
++### 5.6 Organization Role（组织角色）
++
++Logto 支持在组织维度定义角色，实现 RBAC（基于角色的访问控制）：
++
++```bash
++# 1. 创建组织角色
++curl -X POST http://your-host:4001/api/organization-roles \
++  -H "Authorization: Bearer $ADMIN_M2M_TOKEN" \
++  -d '{ "name": "admin", "description": "组织管理员" }'
++
++# 2. 为角色分配 Scope
++curl -X POST http://your-host:4001/api/organization-roles/{roleId}/scopes \
++  -H "Authorization: Bearer $ADMIN_M2M_TOKEN" \
++  -d '{ "organizationScopeIds": ["scope-id"] }'
++
++# 3. 将用户分配到角色
++curl -X POST http://your-host:4001/api/organizations/{orgId}/users/{userId}/roles \
++  -H "Authorization: Bearer $ADMIN_M2M_TOKEN" \
++  -d '{ "organizationRoleIds": ["role-id"] }'
++```
++
++Token 中将包含用户在该组织的角色信息：
++```json
++{
++  "sub": "user-id",
++  "org_id": "company-org-id",
++  "org_roles": ["admin"],
++  "scope": "erp:read erp:write erp:admin"
++}
++```
++
++> 参考：[Organization 角色与权限](https://docs.logto.io/docs/recipes/organizations/)
++
++---
++
++## 六、完整 Token 结构参考
++
++### 用户 Token（Authorization Code Flow）
++
++```json
++{
++  "sub": "user-id",
++  "iss": "http://your-host:4001/oidc",
++  "aud": "https://erp.your-company.com",
++  "scope": "erp:read erp:write",
++  "org_id": "company-org-id",
++  "org_roles": ["member"],
++  "name": "张三",
++  "username": "zhangsan",
++  "email": "zhangsan@company.com",
++  "iat": 1741500000,
++  "exp": 1741503600
++}
++```
++
++### M2M Token（Client Credentials Flow）
++
++```json
++{
++  "sub": "m2m-app-id",
++  "iss": "http://your-host:4001/oidc",
++  "aud": "https://erp.your-company.com",
++  "scope": "erp:read",
++  "org_id": "company-org-id",
++  "iat": 1741500000,
++  "exp": 1741503600
++}
++```
++
++### 个人 Agent Token（携带 `act` claim，WinAMZ 扩展）
++
++```json
++{
++  "sub": "user-id",
++  "act": { "sub": "agent-id" },
++  "iss": "http://your-host:4001/oidc",
++  "aud": "https://erp.your-company.com",
++  "scope": "erp:write",
++  "org_id": "company-org-id",
++  "iat": 1741500000,
++  "exp": 1741503600
++}
++```
++
++> `act` claim 是 WinAMZ 通过 [JWT Customizer](https://docs.logto.io/docs/recipes/customize-jwt/) 注入的扩展字段，标准 Logto Token 中不包含。
++
++---
++
++## 七、SDK 快速参考
++
++| 平台 | 包名 | 文档 |
++|------|------|------|
++| React | `@logto/react` | https://docs.logto.io/docs/recipes/integrate-logto/react/ |
++| Vue | `@logto/vue` | https://docs.logto.io/docs/recipes/integrate-logto/vue/ |
++| Angular | `@logto/angular` | https://docs.logto.io/docs/recipes/integrate-logto/angular/ |
++| Next.js | `@logto/next` | https://docs.logto.io/docs/recipes/integrate-logto/next-js/ |
++| Express（后端） | `@logto/express` | https://docs.logto.io/docs/recipes/protect-your-api/node-express/ |
++| Python | `logto` | https://docs.logto.io/docs/recipes/integrate-logto/python/ |
++| Go | `github.com/logto-io/go` | https://docs.logto.io/docs/recipes/integrate-logto/go/ |
++| iOS (Swift) | `Logto` (SPM) | https://docs.logto.io/docs/recipes/integrate-logto/ios/ |
++| Android (Kotlin) | `io.logto.sdk:android` | https://docs.logto.io/docs/recipes/integrate-logto/android/ |
++| 原生 JS | `@logto/browser` | https://docs.logto.io/docs/recipes/integrate-logto/vanilla-js/ |
++
++---
++
++## 八、常用端点速查
++
++| 端点 | URL | 说明 |
++|------|-----|------|
++| OIDC Discovery | `GET /oidc/.well-known/openid-configuration` | 获取所有配置信息 |
++| JWKS 公钥 | `GET /oidc/jwks` | 用于验证 JWT 签名 |
++| 授权端点 | `GET /oidc/auth` | 发起 OAuth 授权（用户登录）|
++| 令牌端点 | `POST /oidc/token` | 获取/刷新 Access Token |
++| 用户信息端点 | `GET /oidc/me` | 获取当前用户信息（需 Bearer Token）|
++| 登出端点 | `GET /oidc/session/end` | 结束 OIDC 会话 |
++| Management API | `http://your-host:4001/api/` | 用户/组织/应用管理 |
++
++---
++
++## 九、下一步：接入 WinAMZ AI Agent 功能
++
++完成以上标准 Logto 接入后，你的系统具备了：
++- ✅ 用户身份认证（登录/登出）
++- ✅ API 令牌验证（`jwtVerify`）
++- ✅ 基于 Scope 的权限控制
++- ✅ 多租户组织隔离（`org_id`）
++- ✅ M2M 服务间认证（`client_credentials`）
++
++在此基础上，接入 WinAMZ AI Agent 功能只需额外处理两件事：
++
++1. **识别 `act` claim**：判断当前请求是员工本人还是 Agent 代理
++2. **写入审计日志**：向 WinAMZ 上报 Agent 操作记录
++
++→ 继续阅读 [快速接入指南](./quickstart.md) 了解完整实现
+diff --git a/docs/integration/org-agent.md b/docs/integration/org-agent.md
+index 0f77aad54..0161bd67a 100644
+--- a/docs/integration/org-agent.md
++++ b/docs/integration/org-agent.md
+@@ -1,77 +1,201 @@
+-# Enterprise Agent Integration Guide
++> **[文档 7/9]** 上一篇：[个人 Agent 接入](./personal-agent.md) → 下一篇：[Kill Switch API](./kill-switch.md)
++> 前置依赖：[文档 4/9 logto-setup.md](./logto-setup.md)（需理解 M2M 认证、Client Credentials Flow）
+ 
+-## Scenario Description
++# 企业 Agent 接入指南
+ 
+-The enterprise's data analysis AI needs to periodically read data from all departments without being bound to any specific employee.
++## 场景说明
++
++企业的数据分析 AI（DataPipeline）需要定期读取各部门数据，执行过程不绑定任何具体员工身份，以企业/组织的名义进行。
++
++**授权链路：**
++```
++DataPipeline → Client Credentials → M2M Token（携带 org_id）→ ERP/数据仓库
++```
++
++**JWT 结构（无 `act` claim，`sub` 为 Agent 的应用 ID）：**
++```json
++{
++  "sub": "datapipeline-logto-app-id",  // Agent 的 M2M 应用 ID
++  "org_id": "company-org-id",          // 所属企业
++  "scope": "erp:read crm:read",
++  "iss": "http://your-winamz-host/oidc",
++  "aud": "https://erp.your-company.com",
++  "exp": 1741600000
++}
++```
++
++> 参考：[Logto 机器对机器（M2M）文档](https://docs.logto.io/docs/recipes/machine-to-machine/)
++> 参考：[Logto 组织（Organization）令牌文档](https://docs.logto.io/docs/recipes/organizations/)
+ 
+ ---
+ 
+-## Step 1: Register Enterprise Agent
++## 步骤一：注册企业 Agent
++
++**方式一：通过 Admin Console（推荐）**
++1. 打开 `http://your-host:4002`
++2. 进入 **AI Agents** → 点击 **+ Create agent**
++3. 填写：
++   - Name: `DataPipeline-v1`
++   - Type: `Organization`
++   - Organization: 选择对应企业
++4. 提交，状态变为 `pending_review`
+ 
++**方式二：通过 API**
+ ```bash
+-# Call WinAMZ API to create org type agent
+-curl -X POST http://localhost:4001/api/winamz/agents \
++curl -X POST http://your-host:4001/api/winamz/agents \
+   -H "Authorization: Bearer $ADMIN_TOKEN" \
+   -H "Content-Type: application/json" \
+   -d '{
+     "name": "DataPipeline-v1",
+     "type": "org",
+-    "org_id": "your-org-id",
+-    "requested_scopes": ["erp:read", "crm:read"]
++    "orgId": "company-org-id",
++    "requestedScopes": ["erp:read", "crm:read"]
+   }'
+-# Returns agent_id, wait for admin to approve in Console
++```
++
++**响应：**
++```json
++{
++  "id": "datapipeline-agent-id",
++  "name": "DataPipeline-v1",
++  "type": "org",
++  "status": "pending_review",
++  "requestedScopes": ["erp:read", "crm:read"]
++}
+ ```
+ 
+ ---
+ 
+-## Step 2: Admin Approves in Console
++## 步骤二：管理员审批（Admin Console）
++
++1. 打开 Admin Console → **AI Agents**
++2. 找到 `pending review` 状态的 DataPipeline-v1
++3. 检查申请的权限范围是否合理
++4. 点击 **Approve**
++5. 系统为该 Agent 创建关联的 Logto M2M 应用
++6. 在 Agent 详情页查看生成的 `logtoAppId`
+ 
+-1. Open WinAMZ Admin Console: `http://localhost:4002`
+-2. Navigate to **AI Agents** → **Agents**
+-3. Find the pending agent, review requested scopes
+-4. Click **Approve** to create associated Logto M2M application
+-5. Console displays generated `client_id` and `client_secret` — save these securely
++**在 Logto 中为 M2M 应用生成 Client Secret：**
++1. 进入 Logto Console → **Applications** → 找到对应的 M2M 应用
++2. 在 Credentials 区域生成 `client_secret`（保存好，只显示一次）
++
++> 参考：[Logto M2M 应用管理](https://docs.logto.io/docs/recipes/machine-to-machine/)
+ 
+ ---
+ 
+-## Step 3: Get M2M Token After Approval
++## 步骤三：Agent 获取 M2M Token
+ 
+ ```javascript
+-// Enterprise agent uses Client Credentials to get token
+-const response = await fetch('http://localhost:4001/oidc/token', {
+-  method: 'POST',
+-  headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+-  body: new URLSearchParams({
+-    grant_type: 'client_credentials',
+-    client_id: agentLogtoAppId,
+-    client_secret: agentLogtoAppSecret,
+-    resource: 'https://erp.winamz.com',
+-    organization_id: orgId,
+-    scope: 'erp:read crm:read',
+-  }),
+-});
+-const { access_token } = await response.json();
+-// token.sub = agentLogtoAppId (no act claim)
+-// token.org_id = orgId
++// DataPipeline 服务端，使用 Client Credentials 流程获取令牌
++async function getAgentToken() {
++  const response = await fetch('http://your-host:4001/oidc/token', {
++    method: 'POST',
++    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
++    body: new URLSearchParams({
++      grant_type: 'client_credentials',
++      client_id: process.env.AGENT_CLIENT_ID,       // logtoAppId
++      client_secret: process.env.AGENT_CLIENT_SECRET,
++      resource: 'https://erp.your-company.com',      // 目标 API 资源
++      organization_id: 'company-org-id',             // 必须指定组织
++      scope: 'erp:read crm:read',
++    }),
++  });
++
++  if (!response.ok) {
++    throw new Error(`Token request failed: ${await response.text()}`);
++  }
++
++  const { access_token, expires_in } = await response.json();
++  return { access_token, expires_in };
++}
++
++// 建议缓存 token，在到期前 60 秒刷新
++class TokenCache {
++  constructor() {
++    this.token = null;
++    this.expiresAt = 0;
++  }
++
++  async getToken() {
++    if (Date.now() < this.expiresAt - 60_000) {
++      return this.token;
++    }
++    const { access_token, expires_in } = await getAgentToken();
++    this.token = access_token;
++    this.expiresAt = Date.now() + expires_in * 1000;
++    return this.token;
++  }
++}
++
++const tokenCache = new TokenCache();
+ ```
+ 
+ ---
+ 
+-## Step 4: Your Application Verifies the Token
++## 步骤四：你的系统（ERP）验证 Token
+ 
++**Node.js 验证中间件：**
+ ```javascript
++import { createRemoteJWKSet, jwtVerify } from 'jose';
++
++const JWKS = createRemoteJWKSet(
++  new URL('http://your-host:4001/oidc/jwks')
++);
++
+ async function verifyOrgAgentToken(req, res, next) {
+-  const token = req.headers.authorization?.replace('Bearer ', '');
++  const authHeader = req.headers.authorization;
++  if (!authHeader?.startsWith('Bearer ')) {
++    return res.status(401).json({ error: 'Missing authorization header' });
++  }
+ 
+-  const { payload } = await jwtVerify(token, JWKS, {
+-    issuer: 'http://localhost:4001/oidc',
+-    audience: 'https://erp.winamz.com',
+-  });
++  const token = authHeader.slice(7);
++
++  try {
++    const { payload } = await jwtVerify(token, JWKS, {
++      issuer: 'http://your-host:4001/oidc',
++      audience: 'https://erp.your-company.com',
++    });
+ 
+-  // Enterprise agent: no act claim, sub is the agent application ID
+-  req.agentAppId = payload.sub;
+-  req.orgId = payload.org_id;
+-  req.isOrgAgent = !payload.act && payload.org_id !== undefined;
++    // 企业 Agent：无 act claim，sub 是 Agent 的应用 ID
++    req.agentAppId = payload.sub;
++    req.orgId = payload.org_id;
++    req.scopes = payload.scope?.split(' ') ?? [];
++
++    // 判断是否为合法企业 Agent（有 org_id，无 act claim）
++    req.isOrgAgent = !!payload.org_id && !payload.act;
++
++    // 权限检查
++    if (!req.scopes.includes('erp:read')) {
++      return res.status(403).json({ error: 'Missing required scope: erp:read' });
++    }
++
++    next();
++  } catch (err) {
++    return res.status(401).json({ error: 'Invalid token', detail: err.message });
++  }
++}
++```
++
++**与个人 Agent 的区分逻辑（通用中间件）：**
++```javascript
++async function resolveCallerIdentity(req, res, next) {
++  const { payload } = await jwtVerify(token, JWKS, { ... });
++
++  if (payload.act?.sub) {
++    // 个人 Agent：代替员工操作
++    req.callerType = 'personal_agent';
++    req.userId = payload.sub;        // 员工（权限主体）
++    req.agentId = payload.act.sub;   // Agent（执行者）
++  } else if (payload.org_id) {
++    // 企业 Agent（或 M2M 服务）
++    req.callerType = 'org_agent';
++    req.agentAppId = payload.sub;
++    req.orgId = payload.org_id;
++  } else {
++    // 员工本人操作
++    req.callerType = 'user';
++    req.userId = payload.sub;
++  }
+ 
+   next();
+ }
+@@ -79,38 +203,79 @@ async function verifyOrgAgentToken(req, res, next) {
+ 
+ ---
+ 
+-## Kill Switch: Suspending Enterprise Agent
+-
+-If the enterprise agent needs to be immediately stopped:
++## 步骤五：写入审计日志
+ 
+-```bash
+-# Via WinAMZ Admin Console: AI Agents → Agents → Suspend
+-# Or via API:
+-curl -X POST http://localhost:4001/api/winamz/agents/{agentId}/suspend \
+-  -H "Authorization: Bearer $ADMIN_TOKEN"
++```javascript
++// 企业 Agent 操作审计
++async function logOrgAgentAction(req, res, operationResult) {
++  await fetch('http://your-host:4001/api/winamz/audit', {
++    method: 'POST',
++    headers: {
++      'Authorization': `Bearer ${await tokenCache.getToken()}`,
++      'Content-Type': 'application/json',
++    },
++    body: JSON.stringify({
++      event_type: 'agent_action',
++      agent_id: req.agentAppId,
++      org_id: req.orgId,
++      // user_id 不填，因为企业 Agent 不代表任何具体员工
++      resource: `${req.method.toLowerCase()}:${req.path}`,
++      metadata: {
++        records_processed: operationResult.count,
++        status_code: res.statusCode,
++      },
++    }),
++  });
++}
+ ```
+ 
+-Effect:
+-1. `winamz_agents.status` is set to `suspended`
+-2. Associated Logto M2M application secret is revoked
+-3. Agent can no longer obtain new tokens
+-4. Existing access tokens expire within 1 hour
++---
++
++## 完整时序图
++
++```
++DataPipeline 服务              WinAMZ OIDC              你的 ERP 系统
++      │                              │                        │
++      │  POST /oidc/token            │                        │
++      │  (client_credentials)        │                        │
++      │─────────────────────────────>│                        │
++      │  access_token                │                        │
++      │  { sub: "datapipeline-app"   │                        │
++      │    org_id: "company"         │                        │
++      │    scope: "erp:read" }       │                        │
++      │<─────────────────────────────│                        │
++      │                              │                        │
++      │  GET /reports/monthly        │                        │
++      │  Authorization: Bearer <token>                        │
++      │──────────────────────────────────────────────────────>│
++      │                              │  jwtVerify 成功        │
++      │                              │  agentAppId="pipeline" │
++      │                              │  orgId="company"       │
++      │  200 OK + 报告数据            │  isOrgAgent=true       │
++      │<──────────────────────────────────────────────────────│
++```
+ 
+ ---
+ 
+-## Complete Use Case: Data Analysis AI Reads ERP Data
++## Kill Switch：挂起企业 Agent
+ 
++```bash
++# 方式一：Admin Console → AI Agents → 找到 Agent → Suspend
++
++# 方式二：API
++curl -X POST http://your-host:4001/api/winamz/agents/{agentId}/suspend \
++  -H "Authorization: Bearer $ADMIN_TOKEN"
+ ```
+-Sequence:
+-DataPipeline → WinAMZ Token Endpoint: POST /oidc/token (client_credentials)
+-WinAMZ → DataPipeline: Return M2M access_token
+-  token.sub = "datapipeline-app-id"
+-  token.org_id = "company-org-id"
+-  token.scope = "erp:read crm:read"
+-
+-DataPipeline → ERP API: GET /reports/monthly
+-  Authorization: Bearer <token>
+-
+-ERP API → ERP API: jwtVerify → req.agentAppId="datapipeline", req.orgId="company"
+-ERP API → DataPipeline: Return report data
++
++**挂起效果：**
++1. `winamz_agents.status` 设为 `suspended`
++2. 关联 Logto M2M 应用的 Secret 被吊销
++3. Agent 无法再获取新令牌
++4. 现有 Access Token 在到期前仍有效（建议设置较短 TTL ≤ 1 小时）
++
++**恢复 Agent：**
++```bash
++curl -X POST http://your-host:4001/api/winamz/agents/{agentId}/restore \
++  -H "Authorization: Bearer $ADMIN_TOKEN"
++# 注意：需要在 Logto 中重新生成 client_secret
+ ```
+diff --git a/docs/integration/overview.md b/docs/integration/overview.md
+index 369cd7f21..42b1ef1db 100644
+--- a/docs/integration/overview.md
++++ b/docs/integration/overview.md
+@@ -1,44 +1,108 @@
+-# Integration Overview
++> **[文档 3/9]** 上一篇：[产品需求文档](../prd.md) → 下一篇：[Logto 标准接入指南](./logto-setup.md)
+ 
+-WinAMZ provides two integration scenarios for downstream applications:
++# 接入总览
+ 
+-| Scenario | Your Application Type | Integration Method |
+-|----------|-----------------------|--------------------|
+-| Act on behalf of employee | Any service needing employee identity | Verify personal agent token (check `act` claim) |
+-| Act on behalf of enterprise | Backend services, data pipelines | Standard M2M + org token |
++WinAMZ 为下游业务系统提供两种 AI Agent 授权接入方案：
+ 
+-## Quick Start
++| 接入场景 | 你的系统类型 | 接入方式 |
++|----------|-------------|----------|
++| **代替员工操作** | ERP、CRM、OA、邮件等员工业务系统 | 验证 personal agent token（检查 `act` claim）|
++| **代表企业执行** | 数据管道、批处理服务、分析平台 | 验证 M2M token（检查 `org_id` claim）|
+ 
+-### Scenario 1: Personal Agent (OpenClaw Model)
++---
+ 
+-Your downstream application needs to:
+-1. Accept tokens from WinAMZ OIDC (`http://localhost:4001`)
+-2. Check the `act` claim to identify if it's an agent acting on behalf of a user
+-3. Record agent actions in audit logs
++## 核心原则
+ 
+-→ See [personal-agent.md](./personal-agent.md) for details
++### 1. 你的系统只需验证 JWT，无需改动认证逻辑
+ 
+-### Scenario 2: Enterprise Agent
++WinAMZ 基于标准 OIDC/OAuth 2.0 协议。你的系统只需：
++- 从 WinAMZ 的 JWKS 端点获取公钥
++- 用标准 `jose` / `jsonwebtoken` 库验证 JWT 签名
++- 读取 `act.sub`（个人 Agent）或 `org_id`（企业 Agent）字段
+ 
+-Your downstream application needs to:
+-1. Accept M2M tokens with `org_id` claim
+-2. Verify the agent has appropriate scopes
+-3. No `act` claim — the agent acts as itself
++> 参考：[Logto 保护你的 API](https://docs.logto.io/docs/recipes/protect-your-api/)
+ 
+-→ See [org-agent.md](./org-agent.md) for details
++### 2. Token 结构对比
+ 
+-## Token Structure Comparison
++| 令牌类型 | `sub` | `act.sub` | `org_id` | 语义 |
++|----------|-------|-----------|----------|------|
++| 员工直接操作 | userId | 不存在 | orgId | 员工本人操作 |
++| 个人 Agent 代理 | userId | agentId | orgId | Agent 代替员工操作 |
++| 企业 Agent | agentAppId | 不存在 | orgId | 企业 Agent 自主执行 |
+ 
+-| Token Type | `sub` | `act.sub` | `org_id` | Who is acting? |
+-|------------|-------|-----------|----------|----------------|
+-| User direct | userId | (absent) | orgId | Employee themselves |
+-| Personal Agent | userId | agentId | orgId | Agent acting as employee |
+-| Enterprise Agent | agentAppId | (absent) | orgId | Enterprise agent as itself |
++**关键判断逻辑：**
++```javascript
++const isPersonalAgent = !!payload.act?.sub;    // act.sub 存在 = 个人 Agent
++const isOrgAgent = !payload.act && !!payload.org_id && payload.iss !== payload.sub;
++const isHumanUser = !payload.act && !!payload.sub;
++```
+ 
+-## WinAMZ Service Endpoints
++### 3. 审计日志是你的责任
+ 
+-| Service | URL | Purpose |
+-|---------|-----|---------|
+-| OIDC | `http://localhost:4001` | Token issuance, JWKS |
+-| Admin Console | `http://localhost:4002` | Agent registration, management |
+-| Management API | `http://localhost:4001/api` | WinAMZ APIs (agent CRUD, kill switch, audit) |
++WinAMZ 记录 Agent 生命周期事件（注册、审批、挂起、委托创建/撤销），但**业务操作审计需要你的系统主动上报**：
++
++```javascript
++// 每次 Agent 操作完成后，调用 WinAMZ 审计 API 写入记录
++await fetch('http://your-winamz-host/api/winamz/audit', {
++  method: 'POST',
++  headers: { 'Authorization': `Bearer ${winamzM2mToken}` },
++  body: JSON.stringify({
++    event_type: 'agent_action',
++    agent_id: req.agentId,
++    user_id: req.userId,
++    resource: `${req.method}:${req.path}`,
++    metadata: { status_code: res.statusCode },
++  }),
++});
++```
++
++---
++
++## 接入流程选择
++
++```
++你需要让 Agent 代替员工操作？
++│
++├─ 是 → 个人 Agent 接入
++│        → 参见 personal-agent.md
++│
++└─ 否 → Agent 以企业身份独立执行？
++         │
++         ├─ 是 → 企业 Agent 接入
++         │        → 参见 org-agent.md
++         │
++         └─ 两者都需要 → 分别接入两种场景
++```
++
++---
++
++## WinAMZ 服务端点
++
++| 服务 | 地址 | 用途 |
++|------|------|------|
++| OIDC 端点 | `http://your-host:4001/oidc` | 令牌颁发、JWKS 公钥 |
++| Management API | `http://your-host:4001/api` | WinAMZ API（Agent CRUD、Kill Switch、审计）|
++| Admin Console | `http://your-host:4002` | 管理控制台（注册 Agent、查看委托、审计日志）|
++
++**OIDC Discovery（自动获取所有端点）：**
++```
++GET http://your-host:4001/oidc/.well-known/openid-configuration
++```
++
++**JWKS 公钥端点：**
++```
++GET http://your-host:4001/oidc/jwks
++```
++
++> 参考：[Logto OIDC 端点参考](https://docs.logto.io/docs/references/openid-connect/)
++
++---
++
++## 详细接入文档（推荐阅读顺序）
++
++1. [**Logto 标准接入指南**](./logto-setup.md) — **必读** 用户登录、API 保护、M2M、Organization 多租户
++2. [**快速接入指南**](./quickstart.md) — 接入全景图 + 完整代码路径（Logto 基础 → AI Agent 叠加）
++3. [个人 Agent 接入指南](./personal-agent.md) — 员工委托场景完整流程
++4. [企业 Agent 接入指南](./org-agent.md) — M2M 企业场景完整流程
++5. [Kill Switch API 参考](./kill-switch.md) — 紧急撤销操作
++6. [审计日志 API 参考](./audit-log.md) — 审计事件写入与查询
+diff --git a/docs/integration/personal-agent.md b/docs/integration/personal-agent.md
+index 4f41af430..c34a08f19 100644
+--- a/docs/integration/personal-agent.md
++++ b/docs/integration/personal-agent.md
+@@ -1,119 +1,335 @@
+-# Personal Agent Integration Guide
++> **[文档 6/9]** 上一篇：[快速接入指南](./quickstart.md) → 下一篇：[企业 Agent 接入](./org-agent.md)
++> 前置依赖：[文档 4/9 logto-setup.md](./logto-setup.md)（需理解 Authorization Code Flow、jwtVerify、Organization）
+ 
+-## Scenario Description
++# 个人 Agent 接入指南
+ 
+-Employee Zhang San uses OpenClaw and wants OpenClaw to call your application (e.g., ERP system, CRM) on their behalf.
++## 场景说明
++
++员工张三使用 OpenClaw AI 助手，希望 OpenClaw 能以张三的身份调用公司的 ERP 系统、CRM 等业务系统。
++
++**授权链路：**
++```
++张三（员工）→ 授权 OpenClaw → OpenClaw 携带 actor token → ERP/CRM 接受并记录
++```
++
++**JWT 结构（`act` claim 标识代理关系）：**
++```json
++{
++  "sub": "zhangsan-user-id",     // 被代理的员工 ID（权限主体）
++  "act": {
++    "sub": "openclaw-agent-id"   // 代理执行的 Agent ID
++  },
++  "org_id": "company-org-id",
++  "scope": "erp:read erp:write",
++  "iss": "http://your-winamz-host/oidc",
++  "aud": "https://erp.your-company.com",
++  "exp": 1741600000
++}
++```
++
++> 参考 RFC：[RFC 8693 — OAuth 2.0 Token Exchange](https://datatracker.ietf.org/doc/html/rfc8693)（`act` claim 定义）
++
++---
++
++## 步骤一：在 WinAMZ 中注册你的 API 资源
++
++在 WinAMZ Admin Console (`http://your-host:4002`) 中：
++
++1. 进入 **API Resources** → 点击 **Create API resource**
++2. 填写 API Identifier（建议使用 URL 格式）：`https://erp.your-company.com`
++3. 创建权限 Scope：
++   - `erp:read` — 读取数据
++   - `erp:write` — 创建/修改数据
++   - `erp:admin` — 管理员操作
++4. 保存
++
++> 参考：[Logto API 资源文档](https://docs.logto.io/docs/recipes/protect-your-api/node-express/)
+ 
+ ---
+ 
+-## Step 1: Register Your API Resource in WinAMZ
++## 步骤二：注册 Agent（由 Agent 开发方完成）
+ 
+-In WinAMZ Admin Console (`http://localhost:4002`):
+-1. **API Resources** → Create → Enter your API Identifier (e.g., `https://erp.winamz.com`)
+-2. Create Scopes: `erp:read`, `erp:write`, `erp:admin`
++```bash
++# OpenClaw 开发方调用 WinAMZ API 注册 Agent
++curl -X POST http://your-host:4001/api/winamz/agents \
++  -H "Authorization: Bearer $ADMIN_TOKEN" \
++  -H "Content-Type: application/json" \
++  -d '{
++    "name": "OpenClaw v2.1",
++    "type": "personal",
++    "orgId": "company-org-id",
++    "ownerUserId": "zhangsan-user-id",
++    "requestedScopes": ["erp:read", "erp:write"]
++  }'
++```
++
++**响应：**
++```json
++{
++  "id": "openclaw-agent-id",
++  "name": "OpenClaw v2.1",
++  "type": "personal",
++  "status": "pending_review",
++  "requestedScopes": ["erp:read", "erp:write"],
++  "createdAt": "2026-03-11T10:00:00Z"
++}
++```
++
++管理员在 Console 中批准后，Agent 状态变为 `approved`。
+ 
+ ---
+ 
+-## Step 2: OpenClaw Triggers Authorization Flow
++## 步骤三：OpenClaw 发起 OAuth 授权（用户同意流程）
++
++员工需要主动授权 OpenClaw 代替自己操作：
+ 
+ ```javascript
+-// OpenClaw initiates OAuth authorization request
+-const authUrl = new URL('http://localhost:4001/oidc/auth');
+-authUrl.searchParams.set('client_id', 'openclaw-app-id');
++// OpenClaw 客户端构造授权 URL，引导员工在浏览器中完成同意
++const authUrl = new URL('http://your-host:4001/oidc/auth');
++authUrl.searchParams.set('client_id', 'openclaw-oidc-app-id');
+ authUrl.searchParams.set('response_type', 'code');
+ authUrl.searchParams.set('redirect_uri', 'openclaw://callback');
+-authUrl.searchParams.set('scope', 'openid erp:read erp:write');
+-authUrl.searchParams.set('resource', 'https://erp.winamz.com');
+-authUrl.searchParams.set('organization_id', orgId);
+-// Guide employee to complete authorization in browser...
++authUrl.searchParams.set('scope', 'openid offline_access erp:read erp:write');
++authUrl.searchParams.set('resource', 'https://erp.your-company.com');
++authUrl.searchParams.set('organization_id', 'company-org-id');
++// 可选：state 参数用于防 CSRF
++authUrl.searchParams.set('state', crypto.randomUUID());
++
++// 员工看到 WinAMZ 同意页面，确认授权 OpenClaw 请求的权限
++// 同意后回调 redirect_uri，携带 authorization code
++```
++
++**用 code 换取 tokens：**
++```javascript
++const response = await fetch('http://your-host:4001/oidc/token', {
++  method: 'POST',
++  headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
++  body: new URLSearchParams({
++    grant_type: 'authorization_code',
++    client_id: 'openclaw-oidc-app-id',
++    client_secret: 'openclaw-client-secret',
++    code: authorizationCode,
++    redirect_uri: 'openclaw://callback',
++  }),
++});
++const { access_token, refresh_token } = await response.json();
++// access_token 中包含 act.sub = openclaw-agent-id
+ ```
+ 
+-The employee will see the WinAMZ consent page showing the specific permissions OpenClaw is requesting.
++> 参考：[Logto 传统 Web 应用接入文档](https://docs.logto.io/docs/recipes/integrate-logto/vanilla-js/)
+ 
+ ---
+ 
+-## Step 3: Your ERP Verifies the Token
++## 步骤四：你的系统（ERP）验证 Token
+ 
++**安装依赖：**
++```bash
++# Node.js
++npm install jose
++
++# Python
++pip install python-jose cryptography
++
++# Go
++go get github.com/lestrrat-go/jwx/v2
++```
++
++**Node.js 验证中间件（Express）：**
+ ```javascript
+-// ERP backend middleware
+ import { createRemoteJWKSet, jwtVerify } from 'jose';
+ 
++// 缓存 JWKS，避免每次请求都拉取
+ const JWKS = createRemoteJWKSet(
+-  new URL('http://localhost:4001/oidc/jwks')
++  new URL('http://your-host:4001/oidc/jwks')
+ );
+ 
+ async function verifyAgentToken(req, res, next) {
+-  const token = req.headers.authorization?.replace('Bearer ', '');
++  const authHeader = req.headers.authorization;
++  if (!authHeader?.startsWith('Bearer ')) {
++    return res.status(401).json({ error: 'Missing authorization header' });
++  }
++
++  const token = authHeader.slice(7);
++
++  try {
++    const { payload } = await jwtVerify(token, JWKS, {
++      issuer: 'http://your-host:4001/oidc',   // 必须匹配
++      audience: 'https://erp.your-company.com', // 必须匹配你的 API Identifier
++    });
+ 
+-  const { payload } = await jwtVerify(token, JWKS, {
+-    issuer: 'http://localhost:4001/oidc',
+-    audience: 'https://erp.winamz.com',
+-  });
++    // 提取身份上下文
++    req.userId = payload.sub;                      // 员工 ID（权限主体，始终是人）
++    req.agentId = payload.act?.sub ?? null;        // Agent ID，null = 员工本人操作
++    req.orgId = payload.org_id;
++    req.isAgent = !!payload.act?.sub;
+ 
+-  // Standard user token: sub is employee ID
+-  // Agent token: sub is employee ID, act.sub is agent ID
+-  req.userId = payload.sub;
+-  req.agentId = payload.act?.sub ?? null;  // null means employee acted directly
+-  req.isAgent = !!payload.act;
++    // 权限检查（可选，jose 也可在 jwtVerify 中直接验证）
++    const requiredScope = req.route?.requiredScope;
++    if (requiredScope && !payload.scope?.split(' ').includes(requiredScope)) {
++      return res.status(403).json({ error: 'Insufficient scope' });
++    }
+ 
+-  // Audit logs should record agentId
+-  next();
++    next();
++  } catch (err) {
++    console.error('Token verification failed:', err.message);
++    return res.status(401).json({ error: 'Invalid token' });
++  }
+ }
++
++// 在路由中使用
++app.post('/purchase-orders', verifyAgentToken, async (req, res) => {
++  // req.userId = "zhangsan-id"（张三的权限）
++  // req.agentId = "openclaw-agent-id"（OpenClaw 代替操作）
++  // req.isAgent = true
++
++  // 审计日志中同时记录 userId 和 agentId
++  await createPurchaseOrder({ ...req.body, createdBy: req.userId, agent: req.agentId });
++  res.status(201).json({ success: true });
++});
++```
++
++**Python 验证示例（FastAPI）：**
++```python
++import httpx
++from jose import jwt, JWTError
++from fastapi import HTTPException, Security
++from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
++
++security = HTTPBearer()
++
++# 获取 JWKS
++def get_jwks():
++    response = httpx.get("http://your-host:4001/oidc/jwks")
++    return response.json()
++
++async def verify_token(
++    credentials: HTTPAuthorizationCredentials = Security(security)
++):
++    token = credentials.credentials
++    jwks = get_jwks()
++
++    try:
++        payload = jwt.decode(
++            token,
++            jwks,
++            algorithms=["RS256", "ES256"],
++            audience="https://erp.your-company.com",
++            issuer="http://your-host:4001/oidc",
++        )
++    except JWTError as e:
++        raise HTTPException(status_code=401, detail=f"Invalid token: {e}")
++
++    return {
++        "user_id": payload["sub"],
++        "agent_id": payload.get("act", {}).get("sub"),  # None 表示用户本人操作
++        "org_id": payload.get("org_id"),
++        "is_agent": "act" in payload,
++    }
+ ```
+ 
+ ---
+ 
+-## Step 4: Audit Log Example
++## 步骤五：写入审计日志
++
++每次 Agent 操作完成后，调用 WinAMZ 审计 API 记录操作行为：
+ 
+ ```javascript
+-// After each agent action, call WinAMZ audit API
+-await fetch('http://localhost:4001/api/winamz/audit', {
+-  method: 'POST',
+-  headers: { 'Authorization': `Bearer ${m2mToken}` },
+-  body: JSON.stringify({
+-    event_type: 'agent_action',
+-    agent_id: req.agentId,
+-    user_id: req.userId,
+-    resource: `erp:order:${orderId}`,
+-    metadata: { action: 'create', amount: 5000 }
+-  })
+-});
++// 建议封装为独立函数，并确保不影响主业务（fire-and-forget）
++async function logAgentAction(req, res) {
++  if (!req.isAgent) return;  // 只记录 Agent 操作
++
++  try {
++    await fetch('http://your-host:4001/api/winamz/audit', {
++      method: 'POST',
++      headers: {
++        'Authorization': `Bearer ${process.env.WINAMZ_M2M_TOKEN}`,
++        'Content-Type': 'application/json',
++      },
++      body: JSON.stringify({
++        event_type: 'agent_action',
++        agent_id: req.agentId,
++        user_id: req.userId,
++        org_id: req.orgId,
++        resource: `${req.method.toLowerCase()}:${req.path}`,
++        metadata: {
++          method: req.method,
++          path: req.path,
++          status_code: res.statusCode,
++          body_size: req.headers['content-length'],
++        },
++      }),
++    });
++  } catch (err) {
++    // 审计日志写入失败不应影响主业务
++    console.error('Audit log failed:', err.message);
++  }
++}
+ ```
+ 
++> 如何获取 `WINAMZ_M2M_TOKEN`：参见 [企业 Agent 接入指南](./org-agent.md) 中的 M2M 认证部分。
++
+ ---
+ 
+-## Complete Use Case: OpenClaw Submits Purchase Order for Zhang San
++## 完整时序图
+ 
+ ```
+-Sequence:
+-OpenClaw → WinAMZ OIDC: Initiate authorization (scope: erp:write)
+-WinAMZ OIDC → Zhang San: Show consent page
+-Zhang San → WinAMZ OIDC: Click agree
+-WinAMZ OIDC → OpenClaw: Return access_token
+-  token.sub = "zhangsan-userId"
+-  token.act.sub = "openclaw-agent-id"
+-  token.scope = "erp:write"
+-
+-OpenClaw → ERP API: POST /purchase-orders
+-  Authorization: Bearer <token>
+-
+-ERP API → ERP API: jwtVerify → req.userId="zhangsan", req.agentId="openclaw"
+-ERP API → WinAMZ Audit API: Record "openclaw submitted purchase order on behalf of zhangsan"
+-ERP API → OpenClaw: 201 Created
++员工张三               OpenClaw              WinAMZ OIDC          你的 ERP 系统
++    │                     │                       │                      │
++    │ 点击"授权 OpenClaw"  │                       │                      │
++    │────────────────────>│                       │                      │
++    │                     │  发起 /oidc/auth 授权  │                      │
++    │                     │──────────────────────>│                      │
++    │  展示同意页面        │                       │                      │
++    │<────────────────────────────────────────────│                      │
++    │ 点击"同意"           │                       │                      │
++    │────────────────────────────────────────────>│                      │
++    │                     │  返回 authorization_code                      │
++    │                     │<──────────────────────│                      │
++    │                     │  /oidc/token (code 换 tokens)                 │
++    │                     │──────────────────────>│                      │
++    │                     │  access_token         │                      │
++    │                     │  { sub: "zhangsan"    │                      │
++    │                     │    act: { sub: "openclaw" }                  │
++    │                     │    scope: "erp:write" }                      │
++    │                     │<──────────────────────│                      │
++    │                     │                       │                      │
++    │                     │  POST /purchase-orders │                      │
++    │                     │  Authorization: Bearer <token>               │
++    │                     │──────────────────────────────────────────────>
++    │                     │                       │  jwtVerify 成功       │
++    │                     │                       │  userId="zhangsan"    │
++    │                     │                       │  agentId="openclaw"   │
++    │                     │                       │                       │ 写入审计日志
++    │                     │  201 Created          │                       │
++    │                     │<──────────────────────────────────────────────
+ ```
+ 
+ ---
+ 
+-## Kill Switch: Revoking Agent Authorization
++## Kill Switch：撤销 Agent 委托
+ 
+-If the employee wants to revoke OpenClaw's authorization at any time, or an administrator needs to do so:
++员工离职或主动撤权时：
+ 
+ ```bash
+-# Via WinAMZ Admin Console: AI Agents → Grants → Revoke
+-# Or via API:
+-curl -X POST http://localhost:4001/api/winamz/grants/{grantId}/revoke \
++# 方式一：通过 Admin Console（AI Agents → Delegations → Revoke）
++
++# 方式二：通过 API（管理员操作）
++curl -X POST http://your-host:4001/api/winamz/grants/{grantId}/revoke \
+   -H "Authorization: Bearer $ADMIN_TOKEN" \
+-  -d '{ "reason": "Employee request" }'
++  -H "Content-Type: application/json" \
++  -d '{ "reason": "员工离职" }'
++
++# 方式三：批量撤销（撤销某员工的所有 Agent 委托）
++curl -X POST http://your-host:4001/api/winamz/grants/revoke-by-user \
++  -H "Authorization: Bearer $ADMIN_TOKEN" \
++  -H "Content-Type: application/json" \
++  -d '{ "userId": "zhangsan-user-id", "reason": "员工离职" }'
+ ```
+ 
+-Effect: OpenClaw's refresh token is invalidated immediately. Existing access tokens expire within 1 hour (configurable).
++**撤销效果：**
++1. `winamz_agent_grants.revoked_at` 写入当前时间
++2. Logto 中该用户对该 Client 的所有 Grant 被删除
++3. Refresh Token 立即失效，无法续期
++4. 现有 Access Token 在到期前仍有效（默认 1 小时）
++
++> 如需立即使所有令牌失效，追加调用挂起接口：参见 [Kill Switch 完整文档](./kill-switch.md)
+diff --git a/docs/integration/quickstart.md b/docs/integration/quickstart.md
+new file mode 100644
+index 000000000..38e8f6a46
+--- /dev/null
++++ b/docs/integration/quickstart.md
+@@ -0,0 +1,266 @@
++> **[文档 5/9]** 上一篇：[Logto 标准接入指南](./logto-setup.md) → 下一篇：[个人 Agent 接入](./personal-agent.md) 或 [企业 Agent 接入](./org-agent.md)
++> 前置依赖：请先阅读 [文档 4/9 logto-setup.md](./logto-setup.md)
++
++# 快速接入指南
++
++本文档是接入 WinAMZ 的完整路径索引，按照**先接入 Logto 标准认证，再叠加 AI Agent 能力**的顺序组织。
++
++---
++
++## 接入全景图
++
++```
++你的业务系统
++    │
++    ▼
++【阶段一：Logto 标准接入】─────────────────────────────────────
++│  1. 用户身份认证（前端登录/登出）
++│  2. 后端 API 令牌验证（jwtVerify）
++│  3. 基于 Scope 的权限控制
++│  4. 多租户组织（org_id 数据隔离）
++│  5. M2M 服务间认证（Client Credentials）
++│
++│  参见：logto-setup.md
++─────────────────────────────────────────────────────────────
++    │
++    ▼
++【阶段二：WinAMZ AI Agent 叠加】────────────────────────────────
++│  在已有 jwtVerify 基础上额外处理：
++│  1. 识别 act.sub（区分员工本人 vs Agent 代理）
++│  2. 写入 WinAMZ 审计日志
++│
++│  参见：personal-agent.md / org-agent.md
++─────────────────────────────────────────────────────────────
++```
++
++---
++
++## 阶段一：Logto 标准接入
++
++> 详细内容请阅读 [Logto 标准接入指南](./logto-setup.md)，本节为关键步骤速览。
++
++### 步骤 1：创建应用和 API 资源（Admin Console）
++
++| 操作 | 位置 | 说明 |
++|------|------|------|
++| 创建 Web 应用 | Applications → Create | 获取 `client_id`，用于前端登录 |
++| 创建 API Resource | API Resources → Create | 设置 `audience`（如 `https://erp.your-company.com`）和 Scopes |
++| 创建 M2M 应用 | Applications → Create → M2M | 用于服务间通信和审计日志写入 |
++
++### 步骤 2：前端集成登录
++
++```bash
++npm install @logto/react  # 或 @logto/vue / @logto/next
++```
++
++```tsx
++// 最简配置
++import { LogtoProvider } from '@logto/react';
++
++<LogtoProvider config={{
++  endpoint: 'http://your-host:4001',
++  appId: 'your-app-id',
++  resources: ['https://erp.your-company.com'],
++  scopes: ['erp:read', 'erp:write'],
++}}>
++  <App />
++</LogtoProvider>
++```
++
++```tsx
++// 触发登录/登出
++const { signIn, signOut, isAuthenticated, getAccessToken } = useLogto();
++
++// 获取令牌调用 API
++const token = await getAccessToken('https://erp.your-company.com');
++fetch('/api/orders', { headers: { Authorization: `Bearer ${token}` } });
++```
++
++> 完整 SDK 列表和各平台示例：[logto-setup.md → 第二节](./logto-setup.md#二前端-web-应用接入用户登录)
++
++### 步骤 3：后端 API 验证令牌
++
++```bash
++npm install jose
++```
++
++```typescript
++import { createRemoteJWKSet, jwtVerify } from 'jose';
++
++// 全局初始化一次
++const JWKS = createRemoteJWKSet(new URL('http://your-host:4001/oidc/jwks'));
++
++async function requireAuth(req, res, next) {
++  const token = req.headers.authorization?.slice(7);
++  const { payload } = await jwtVerify(token, JWKS, {
++    issuer: 'http://your-host:4001/oidc',
++    audience: 'https://erp.your-company.com',
++  });
++  req.user = { id: payload.sub, orgId: payload.org_id, scopes: payload.scope?.split(' ') ?? [] };
++  next();
++}
++```
++
++> 完整中间件（含权限检查、Python/Go 示例）：[logto-setup.md → 第三节](./logto-setup.md#三后端-api-接入保护你的-api)
++
++### 步骤 4：M2M 服务间认证（Client Credentials）
++
++```typescript
++// 用于服务间调用或调用 WinAMZ Management API
++const resp = await fetch('http://your-host:4001/oidc/token', {
++  method: 'POST',
++  body: new URLSearchParams({
++    grant_type: 'client_credentials',
++    client_id: process.env.M2M_CLIENT_ID!,
++    client_secret: process.env.M2M_CLIENT_SECRET!,
++    resource: 'https://erp.your-company.com',
++    scope: 'erp:read',
++  }),
++});
++const { access_token } = await resp.json();
++```
++
++> 完整 Token 缓存实现：[logto-setup.md → 第四节](./logto-setup.md#四m2m机器对机器认证)
++
++---
++
++## 阶段二：WinAMZ AI Agent 叠加
++
++完成阶段一后，你的系统已经能够验证所有标准 Logto 令牌。AI Agent 令牌是标准 Logto 令牌的超集——在现有 `jwtVerify` 验证通过后，**额外检查 `act.sub` 字段**即可。
++
++### 核心区别：一行代码判断调用者类型
++
++```typescript
++const { payload } = await jwtVerify(token, JWKS, { issuer, audience });
++
++// ① 员工本人操作（标准 Logto 令牌，无 act）
++// ② 个人 Agent 代替员工操作（WinAMZ 扩展，有 act.sub）
++// ③ 企业 Agent 自主操作（M2M 令牌，有 org_id，无 act，sub 是应用 ID）
++
++const callerType = payload.act?.sub
++  ? 'personal_agent'           // ② Agent 代理员工
++  : payload.org_id && !payload.name
++    ? 'org_agent'              // ③ 企业 Agent
++    : 'user';                  // ① 员工本人
++```
++
++### 步骤 5：扩展现有中间件，识别 Agent 身份
++
++```typescript
++// 在原有 requireAuth 基础上增加 AI Agent 判断
++async function requireAuth(req, res, next) {
++  const token = req.headers.authorization?.slice(7);
++  const { payload } = await jwtVerify(token, JWKS, { issuer, audience });
++
++  // ──── 已有逻辑（Logto 标准）────
++  const scopes = (payload.scope as string)?.split(' ') ?? [];
++
++  // ──── 新增：AI Agent 扩展识别 ────
++  if (payload.act?.sub) {
++    // 个人 Agent：sub=员工ID，act.sub=AgentID
++    req.user = {
++      id: payload.sub,
++      agentId: payload.act.sub as string,  // ← 新增
++      orgId: payload.org_id as string,
++      scopes,
++      callerType: 'personal_agent',
++    };
++  } else {
++    // 员工本人或企业 Agent（无 act claim）
++    req.user = {
++      id: payload.sub,
++      orgId: payload.org_id as string,
++      scopes,
++      callerType: payload.org_id ? 'org_agent' : 'user',
++    };
++  }
++
++  next();
++}
++```
++
++### 步骤 6：写入审计日志（仅 Agent 操作时）
++
++```typescript
++// 在 Response 发送后，非阻塞写入审计日志
++app.use((req, res, next) => {
++  const originalJson = res.json.bind(res);
++  res.json = (body) => {
++    originalJson(body);
++
++    if (req.user?.agentId) {  // 只有 Agent 操作才写审计
++      fetch('http://your-host:4001/api/winamz/audit', {
++        method: 'POST',
++        headers: {
++          Authorization: `Bearer ${process.env.WINAMZ_M2M_TOKEN}`,
++          'Content-Type': 'application/json',
++        },
++        body: JSON.stringify({
++          event_type: 'agent_action',
++          agent_id: req.user.agentId,
++          user_id: req.user.id,
++          org_id: req.user.orgId,
++          resource: `${req.method.toLowerCase()}:${req.path}`,
++          metadata: { status_code: res.statusCode },
++        }),
++      }).catch(console.error);
++    }
++
++    return res;
++  };
++  next();
++});
++```
++
++---
++
++## 完整接入清单
++
++### Logto 标准接入
++
++- [ ] 在 Admin Console 创建 Web 应用，获取 `client_id`
++- [ ] 在 Admin Console 创建 API Resource，配置 `audience` 和 Scopes
++- [ ] 前端安装 Logto SDK，实现登录/登出/获取 Token
++- [ ] 后端实现 `jwtVerify` 中间件，验证 `issuer` 和 `audience`
++- [ ] 按需实现 Scope 权限检查
++- [ ] 如需多租户：请求 Token 时携带 `organization_id`，后端按 `org_id` 隔离数据
++- [ ] 如需 M2M：创建 M2M 应用，用 Client Credentials 获取 Token
++
++### WinAMZ AI Agent 叠加
++
++- [ ] 在 WinAMZ Admin Console 创建 M2M 应用（用于写审计日志），配置 Management API 权限
++- [ ] 在现有中间件中添加 `act.sub` 检查，识别 Agent 身份
++- [ ] 添加审计日志中间件，Agent 操作后自动上报
++- [ ] 在数据库记录 `created_by_agent` 字段（可选，用于业务追溯）
++
++---
++
++## 详细文档索引
++
++| 文档 | 适用场景 |
++|------|----------|
++| [Logto 标准接入指南](./logto-setup.md) | **必读** — Logto 基础接入全面介绍 |
++| [接入总览](./overview.md) | AI Agent 两种场景对比 |
++| [个人 Agent 接入](./personal-agent.md) | 员工委托 AI 代理操作业务系统 |
++| [企业 Agent 接入](./org-agent.md) | 企业级 M2M Agent 自主执行 |
++| [Kill Switch API](./kill-switch.md) | 紧急撤销 Agent 授权 |
++| [审计日志 API](./audit-log.md) | 查询与写入审计事件 |
++
++---
++
++## Logto 官方文档链接
++
++| 主题 | 链接 |
++|------|------|
++| 快速开始总览 | https://docs.logto.io/docs/recipes/integrate-logto/ |
++| React SDK | https://docs.logto.io/docs/recipes/integrate-logto/react/ |
++| Vue SDK | https://docs.logto.io/docs/recipes/integrate-logto/vue/ |
++| Next.js SDK | https://docs.logto.io/docs/recipes/integrate-logto/next-js/ |
++| 保护后端 API | https://docs.logto.io/docs/recipes/protect-your-api/ |
++| M2M 机器对机器 | https://docs.logto.io/docs/recipes/machine-to-machine/ |
++| Organizations 多租户 | https://docs.logto.io/docs/recipes/organizations/ |
++| Organization 角色与权限 | https://docs.logto.io/docs/recipes/organizations/ |
++| JWT 自定义（act claim） | https://docs.logto.io/docs/recipes/customize-jwt/ |
++| Management API 使用 | https://docs.logto.io/docs/recipes/interact-with-management-api/ |
++| OIDC 端点参考 | https://docs.logto.io/docs/references/openid-connect/ |
++| RFC 8693 Token Exchange | https://datatracker.ietf.org/doc/html/rfc8693 |
+diff --git a/docs/prd.md b/docs/prd.md
+index 8cc09a52b..52ab5f00b 100644
+--- a/docs/prd.md
++++ b/docs/prd.md
+@@ -1,172 +1,257 @@
+-# WinAMZ Identity & AI Agent Authorization Platform — PRD
++> **[文档 2/9]** 上一篇：[README（入口索引）](./README.md) → 下一篇：[接入总览](./integration/overview.md)
+ 
+-## Product Name
++# WinAMZ 身份认证与 AI Agent 授权平台 — 产品需求文档
++
++## 产品名称
+ 
+ **WinAMZ Identity & AI Agent Authorization Platform**
+-Based on Logto OSS Fork, focused on enterprise AI agent identity registration, delegated authorization, and security governance.
++基于 Logto OSS Fork，专注于企业 AI Agent 身份注册、委托授权与安全治理。
+ 
+ ---
+ 
+-## Background
++## 背景与问题
++
++AI Agent 在企业场景中存在两种本质不同的授权模型：
++
++### 模型一：个人 AI Agent（OpenClaw 模式）
++
++员工的 AI 助手以员工身份代替员工操作业务系统。需要：
++- **用户同意流程**：员工主动授权，可随时撤回
++- **Actor Token**（RFC 8693）：JWT 中携带 `act.sub = agentId`，资源服务器可区分"谁在代替谁操作"
++- **可撤销委托链**：一键 Kill Switch，立即终止 Agent 的所有委托
++
++> Logto 原生 M2M **不满足**此场景——M2M 令牌无法携带用户身份上下文，也不支持用户级别的委托撤销。
+ 
+-This platform addresses two fundamentally different authorization models for AI agents:
++### 模型二：企业 AI 助手（Org Agent 模式）
+ 
+-1. **Personal AI Agent (OpenClaw Model)**: Employee's AI persona acts on behalf of the employee. Requires user consent flow, actor token (RFC 8693), revocable delegation chain. Logto's existing M2M **does not** satisfy this scenario.
++企业级数据处理 AI，代表企业整体执行任务，不绑定具体员工。需要：
++- M2M Client Credentials + Organization Token
++- 令牌携带 `org_id`，不含 `act` 声明
++- 管理员批准后方可获取令牌
+ 
+-2. **Enterprise AI Assistant**: Organization-level AI represents the enterprise in handling data. Logto M2M + Organization Token **mostly satisfies** this scenario.
++> Logto M2M + Organization Token **基本满足**此场景，WinAMZ 在其上增加了注册审批流程和生命周期管理。
+ 
+ ---
+ 
+-## Core Concept Model
++## 核心概念模型
+ 
+ ```
+-Enterprise (Organization)
+-  ├── Employee (User)
+-  │     └── Personal AI Agent
+-  │           - Employee authorizes → actor token (RFC 8693)
+-  │           - Token: { sub: userId, act: { sub: agentId }, scope: "..." }
+-  │           - Employee or admin can revoke at any time
++企业 (Organization)
++  ├── 员工 (User)
++  │     └── 个人 AI Agent (personal)
++  │           - 员工授权 → actor token (RFC 8693)
++  │           - JWT: { sub: userId, act: { sub: agentId }, scope: "..." }
++  │           - 员工或管理员可随时撤销
+   │
+-  └── Enterprise AI Assistant (Org Agent)
+-        - Admin approval required
++  └── 企业 AI 助手 (Org Agent)
++        - 需管理员批准后生效
+         - M2M token + org_id scope
+-        - Token: { sub: agentAppId, org_id: orgId, scope: "..." }
++        - JWT: { sub: agentAppId, org_id: orgId, scope: "..." }
++        - 挂起即立即停止所有令牌获取能力
+ ```
+ 
+ ---
+ 
+-## Feature Modules
++## 功能模块
+ 
+-### F1: AI Agent Registry
++### F1：AI Agent 注册表
+ 
+-**DB Table: `winamz_agents`**
++**数据库表：`winamz_agents`**
+ ```sql
+ CREATE TABLE winamz_agents (
+-  id             VARCHAR(21) PRIMARY KEY,
+-  name           VARCHAR(255) NOT NULL,
+-  type           VARCHAR(20)  NOT NULL CHECK (type IN ('personal', 'org')),
+-  org_id         VARCHAR(21)  NOT NULL REFERENCES organizations(id),
+-  owner_user_id  VARCHAR(21)  REFERENCES users(id),
+-  logto_app_id   VARCHAR(21),
+-  status         VARCHAR(20)  NOT NULL DEFAULT 'pending_review',
+-  requested_scopes TEXT[],
++  id             VARCHAR(21) PRIMARY KEY,           -- 全局唯一 ID
++  name           VARCHAR(255) NOT NULL,             -- Agent 名称
++  type           VARCHAR(20)  NOT NULL              -- 'personal' | 'org'
++                 CHECK (type IN ('personal', 'org')),
++  org_id         VARCHAR(21)  NOT NULL              -- 所属企业（必须是 Logto Organization）
++                 REFERENCES organizations(id) ON DELETE CASCADE,
++  owner_user_id  VARCHAR(21)                        -- personal 类型的所有者用户
++                 REFERENCES users(id) ON DELETE SET NULL,
++  logto_app_id   VARCHAR(21),                       -- 关联的 Logto M2M 应用 ID（审批后生成）
++  status         VARCHAR(20)  NOT NULL DEFAULT 'pending_review'
++                 CHECK (status IN ('pending_review','approved','rejected','suspended')),
++  requested_scopes TEXT[],                          -- 申请的权限范围
+   created_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+   updated_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+ );
+ ```
+ 
+-**Status Flow**: `pending_review` → `approved` / `rejected` → `suspended`
++**状态流转：**
++```
++pending_review ──approve──▶ approved ──suspend──▶ suspended
++               ──reject──▶ rejected              ──restore──▶ approved
++```
+ 
+-### F2: Personal Agent Delegation Flow
++---
+ 
+-**DB Table: `winamz_agent_grants`**
++### F2：个人 Agent 委托流程
++
++**数据库表：`winamz_agent_grants`**
+ ```sql
+ CREATE TABLE winamz_agent_grants (
+   id             VARCHAR(21) PRIMARY KEY,
+-  agent_id       VARCHAR(21) NOT NULL REFERENCES winamz_agents(id),
+-  user_id        VARCHAR(21) NOT NULL REFERENCES users(id),
+-  org_id         VARCHAR(21) NOT NULL REFERENCES organizations(id),
+-  granted_scopes TEXT[]      NOT NULL,
++  agent_id       VARCHAR(21) NOT NULL REFERENCES winamz_agents(id) ON DELETE CASCADE,
++  user_id        VARCHAR(21) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
++  org_id         VARCHAR(21) NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
++  granted_scopes TEXT[]      NOT NULL,    -- 实际授予的权限（用户确认的）
+   granted_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+-  expires_at     TIMESTAMPTZ,
+-  revoked_at     TIMESTAMPTZ,
+-  revoked_by     VARCHAR(21)
++  expires_at     TIMESTAMPTZ,             -- 可选到期时间
++  revoked_at     TIMESTAMPTZ,            -- Kill Switch 触发时间
++  revoked_by     VARCHAR(21)            -- 执行撤销的管理员/用户 ID
+ );
+ ```
+ 
+-Token `act` claim injected via Logto JWT Customizer (zero intrusion to core code):
++**JWT 自定义（通过 Logto JWT Customizer 注入 `act` claim，零侵入核心代码）：**
+ ```javascript
+-const getCustomJwtClaims = async ({ token, context }) => {
+-  if (context.winamzAgentGrant) {
+-    return { act: { sub: context.winamzAgentGrant.agentId } };
++// Logto Admin Console → 自定义 JWT → 访问令牌
++const getCustomJwtClaims = async ({ token, context, environmentVariables }) => {
++  // 查询 WinAMZ 委托记录
++  if (context.grant?.type === 'agent_delegation') {
++    return {
++      act: {
++        sub: context.grant.agentId,   // Agent 的唯一 ID
++        iss: 'winamz',                // 标识来源
++      }
++    };
+   }
+   return {};
+ };
+ ```
+ 
+-### F3: Kill Switch
++> 参考：[Logto JWT Customizer 文档](https://docs.logto.io/docs/recipes/customize-jwt/)
++
++---
++
++### F3：Kill Switch 安全治理
+ 
+-- **Personal Agent**: Update `winamz_agent_grants.revoked_at` + delete Logto Grant
+-- **Enterprise Agent**: Update `winamz_agents.status='suspended'` + revoke M2M Secret
++| 操作对象 | Kill Switch 效果 |
++|----------|-----------------|
++| 个人 Agent | `winamz_agent_grants.revoked_at` 写入时间戳 + 删除 Logto Grant → Refresh Token 立即失效 |
++| 企业 Agent | `winamz_agents.status = 'suspended'` + 吊销 M2M App Secret → 无法获取新令牌 |
++| 用户维度批量撤销 | 撤销指定用户名下所有 Agent 的委托（员工离职场景） |
++| 组织维度紧急撤销 | 撤销组织下所有 Agent（安全事件应急响应） |
+ 
+-### F4: Audit Log
++**注意**：现有 Access Token 在到期前仍然有效（默认 1 小时）。如需立即使全部令牌失效，需同时挂起 Agent 账号。
+ 
+-**DB Table: `winamz_audit_logs`**
++---
++
++### F4：审计日志
++
++**数据库表：`winamz_audit_logs`**
+ ```sql
+ CREATE TABLE winamz_audit_logs (
+   id          VARCHAR(21) PRIMARY KEY,
+-  event_type  VARCHAR(50) NOT NULL,
+-  org_id      VARCHAR(21),
+-  agent_id    VARCHAR(21),
+-  user_id     VARCHAR(21),
+-  actor_id    VARCHAR(21),
+-  resource    TEXT,
+-  metadata    JSONB,
++  event_type  VARCHAR(50) NOT NULL,    -- 事件类型（见下方事件类型表）
++  org_id      VARCHAR(21),             -- 相关组织 ID
++  agent_id    VARCHAR(21),             -- 相关 Agent ID
++  user_id     VARCHAR(21),             -- 相关用户 ID（被代理方）
++  actor_id    VARCHAR(21),             -- 操作执行者 ID（管理员）
++  resource    TEXT,                    -- 操作资源（如 erp:order:PO-001）
++  metadata    JSONB,                   -- 扩展元数据（请求路径、状态码等）
+   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+ );
+ ```
+ 
+-### F5: Admin UI (Extended Logto Console)
++**事件类型：**
++
++| 事件类型 | 触发时机 |
++|----------|----------|
++| `agent_registered` | 注册新 Agent |
++| `agent_approved` | 管理员批准 Agent |
++| `agent_suspended` | Agent 被挂起 |
++| `grant_created` | 用户授权 Agent |
++| `grant_revoked` | 撤销委托（Kill Switch）|
++| `agent_action` | 下游系统记录 Agent 操作 |
++| `token_issued` | 向 Agent 颁发令牌 |
+ 
+-New "AI Agents" navigation section in Admin Console with three pages:
+-- `/winamz/agents` — Agent registry (approve/suspend)
+-- `/winamz/grants` — Delegation authorization list (Kill Switch)
+-- `/winamz/audit`  — Audit log query
++---
++
++### F5：管理控制台（扩展 Logto Console）
++
++在 Logto Admin Console 中新增「AI Agents」导航区：
++
++| 页面 | 路径 | 功能 |
++|------|------|------|
++| Agent 注册表 | `/winamz/agents` | 查看/创建/审批/挂起 Agent，支持搜索和分页 |
++| 委托授权列表 | `/winamz/grants` | 查看所有委托记录，逐条或批量 Kill Switch |
++| 审计日志 | `/winamz/audit` | 查询所有 Agent 操作事件 |
++
++**Agent 详情页** (`/winamz/agents/:id`)：
++- 编辑 Agent 名称、权限范围
++- 状态操作：Approve / Suspend / Restore
++- 危险区：删除 Agent（含二次确认）
+ 
+ ---
+ 
+-## Technical Roadmap
++## 技术路线图
+ 
+-| Phase | Task | Deliverable |
+-|-------|------|-------------|
+-| P0 | Fork + local dev environment | Running Logto fork |
+-| P1 | WinAMZ DB migration + `/api/winamz/agents` CRUD | Agent registry API |
+-| P2 | Personal delegation flow + JWT Customizer `act` claim | Complete delegation authorization flow |
+-| P3 | Kill Switch API + audit log | Security governance capability |
+-| P4 | Console UI (three admin pages) | Visual management console |
+-| P5 | Integration docs + OpenClaw validation | Developer docs + end-to-end validation |
++| 阶段 | 任务 | 交付物 |
++|------|------|--------|
++| P0 | Fork + 本地开发环境搭建 | 可运行的 Logto Fork |
++| P1 | WinAMZ DB 迁移 + `/api/winamz/agents` CRUD | Agent 注册表 API |
++| P2 | 个人委托流程 + JWT Customizer `act` claim | 完整委托授权链路 |
++| P3 | Kill Switch API + 审计日志 | 安全治理能力 |
++| P4 | Console UI（三个管理页面） | 可视化管理控制台 |
++| P5 | 接入文档 + 端到端验证 | 开发者文档 + 完整闭环测试 |
++
++**当前进度：P0–P4 全部完成。**
+ 
+ ---
+ 
+-## API Reference
++## API 接口速览
+ 
+-### Agent Registry API
++### Agent 注册表 API
+ 
+-```
+-GET    /api/winamz/agents              List all agents (paginated)
+-POST   /api/winamz/agents              Register new agent
+-GET    /api/winamz/agents/:id          Get agent details
+-PATCH  /api/winamz/agents/:id          Update agent
+-DELETE /api/winamz/agents/:id          Delete agent
+-POST   /api/winamz/agents/:id/approve  Approve agent registration
+-POST   /api/winamz/agents/:id/suspend  Suspend agent
+-```
++| 方法 | 路径 | 说明 |
++|------|------|------|
++| `GET` | `/api/winamz/agents` | 列出所有 Agent（分页、可过滤） |
++| `POST` | `/api/winamz/agents` | 注册新 Agent |
++| `GET` | `/api/winamz/agents/:id` | 获取 Agent 详情 |
++| `PATCH` | `/api/winamz/agents/:id` | 更新 Agent 信息 |
++| `DELETE` | `/api/winamz/agents/:id` | 删除 Agent |
++| `POST` | `/api/winamz/agents/:id/approve` | 审批通过 |
++| `POST` | `/api/winamz/agents/:id/suspend` | 挂起 Agent |
++| `POST` | `/api/winamz/agents/:id/restore` | 恢复 Agent |
+ 
+-### Delegation Management API
++### 委托管理 API
+ 
+-```
+-GET    /api/winamz/grants              List all grants
+-POST   /api/winamz/grants              Create grant
+-GET    /api/winamz/grants/:id          Get grant details
+-POST   /api/winamz/grants/:id/revoke   Revoke grant (Kill Switch)
+-```
++| 方法 | 路径 | 说明 |
++|------|------|------|
++| `GET` | `/api/winamz/grants` | 列出所有委托记录 |
++| `POST` | `/api/winamz/grants` | 创建委托记录 |
++| `GET` | `/api/winamz/grants/:id` | 获取委托详情 |
++| `POST` | `/api/winamz/grants/:id/revoke` | 撤销委托（Kill Switch）|
++| `POST` | `/api/winamz/grants/revoke-by-user` | 按用户批量撤销 |
+ 
+-### Audit Log API
++### 审计日志 API
+ 
+-```
+-GET    /api/winamz/audit               Query audit logs (paginated, filterable)
+-POST   /api/winamz/audit               Record audit event
+-```
++| 方法 | 路径 | 说明 |
++|------|------|------|
++| `GET` | `/api/winamz/audit` | 查询审计日志（分页、可过滤）|
++| `POST` | `/api/winamz/audit` | 下游系统写入审计事件 |
+ 
+ ---
+ 
+-## Configuration
++## 环境配置
+ 
+ ```bash
+-# Database
+-DATABASE_URL=postgresql://root:820518wU@localhost:5432/logto
++# 数据库
++DATABASE_URL=postgresql://root:password@localhost:5432/logto
++
++# 服务端口
++OIDC_PORT=4001      # OIDC / Management API
++ADMIN_PORT=4002     # Admin Console
+ 
+-# Ports
+-OIDC_PORT=4001
+-ADMIN_PORT=4002
++# 生产环境请使用环境变量，不要硬编码密码
+ ```
++
++---
++
++## 相关参考
++
++- [Logto 官方文档](https://docs.logto.io)
++- [Logto 组织（Organization）文档](https://docs.logto.io/docs/recipes/organizations/)
++- [Logto M2M 机器对机器文档](https://docs.logto.io/docs/recipes/machine-to-machine/)
++- [Logto 保护 API 文档](https://docs.logto.io/docs/recipes/protect-your-api/)
++- [Logto JWT 自定义文档](https://docs.logto.io/docs/recipes/customize-jwt/)
++- [RFC 8693 — OAuth 2.0 Token Exchange](https://datatracker.ietf.org/doc/html/rfc8693)
+diff --git a/docs/upgrade-guide.md b/docs/upgrade-guide.md
+index dd8f0524d..8332a937e 100644
+--- a/docs/upgrade-guide.md
++++ b/docs/upgrade-guide.md
+@@ -1,83 +1,139 @@
+-# Logto Upstream Upgrade Guide
++# Logto 上游升级指南
+ 
+-## Minimum Coupling Principle
++## 最小耦合原则
+ 
+-All modifications to Logto source code fall into two categories:
++WinAMZ 对 Logto 源码的所有改动分为两类，确保升级时风险可控：
+ 
+-### Class A: Pure new files (zero conflict on upgrade)
++### A 类：纯新增文件（升级无冲突）
++
++这些文件在 Logto 原始代码库中不存在，升级时不会产生任何冲突：
+ 
+ ```
+-packages/core/src/routes/winamz/          ← New directory
+-packages/console/src/pages/winamz/        ← New directory
+-packages/schemas/src/winamz.ts            ← New file
+-packages/schemas/src/migrations/winamz-*  ← New migration files
+-docs/                                     ← New directory
++packages/core/src/routes/winamz/                   ← 新目录，WinAMZ 路由
++packages/console/src/pages/winamz/                 ← 新目录，WinAMZ 管理页面
++packages/console/src/pages/winamz/components/      ← 新目录，WinAMZ 组件
++packages/console/src/hooks/use-console-routes/routes/winamz.tsx  ← 新文件
++packages/schemas/src/winamz.ts                     ← 新文件，TypeScript 类型定义
++packages/schemas/src/migrations/winamz-001-create-tables.ts      ← 新文件，DB 建表
++packages/schemas/src/migrations/winamz-002-add-fk-constraints.ts ← 新文件，外键约束
++packages/phrases/src/locales/en/translation/admin-console/winamz.ts ← 新文件，i18n 字符串
++docs/                                              ← 新目录，项目文档
+ ```
+ 
+-### Class B: Micro-changes to existing files (managed via cherry-pick)
++### B 类：对现有文件的微量改动（通过 cherry-pick 管理）
+ 
+-```
+-packages/core/src/routes/init.ts                            → +3 lines (mount winamz routes)
+-packages/console/src/hooks/use-console-routes/index.tsx     → +5 lines (add route declarations)
+-packages/console/src/containers/ConsoleContent/Sidebar/hook.tsx → +8 lines (add AI Agents menu)
+-packages/phrases/src/locales/en/translation/admin-console/tabs.ts → +3 lines (add tab keys)
+-packages/phrases/src/locales/en/translation/admin-console/tab-sections.ts → +1 line (add section key)
+-```
++这些改动量极小（每处 1–8 行），且均标注 `[winamz]` 注释，便于合并冲突时快速定位：
++
++| 文件 | 改动内容 | 行数 |
++|------|----------|------|
++| `packages/core/src/routes/init.ts` | 挂载 winamz 路由 | +3 |
++| `packages/console/src/hooks/use-console-routes/index.tsx` | 声明 winamz 路由 | +5 |
++| `packages/console/src/containers/ConsoleContent/Sidebar/hook.tsx` | 添加 AI Agents 菜单项 | +8 |
++| `packages/phrases/src/locales/en/translation/admin-console/tabs.ts` | 添加 tab key | +6 |
++| `packages/phrases/src/locales/en/translation/admin-console/tab-sections.ts` | 添加 section key | +1 |
++| `packages/phrases/src/locales/en/translation/admin-console/index.ts` | 导入 winamz i18n | +2 |
+ 
+-Class B changes are concentrated in dedicated git commits with `[winamz]` prefix, facilitating cherry-pick.
++所有 B 类改动集中在以 `[winamz]` 为前缀的独立 git commit 中，便于 cherry-pick。
+ 
+ ---
+ 
+-## Upgrade Procedure
++## 升级操作流程
+ 
+ ```bash
+-# 1. Pull upstream Logto updates
++# ① 拉取上游 Logto 更新
++git remote add upstream https://github.com/logto-io/logto.git  # 首次执行
+ git fetch upstream
+ 
+-# 2. Check upstream changes (assess impact on Class B files)
++# ② 评估 B 类文件的影响（查看上游是否修改了同一位置）
+ git log upstream/master --oneline -20
+ git diff HEAD upstream/master -- packages/core/src/routes/init.ts
+ git diff HEAD upstream/master -- packages/console/src/hooks/use-console-routes/index.tsx
+ git diff HEAD upstream/master -- packages/console/src/containers/ConsoleContent/Sidebar/hook.tsx
+ git diff HEAD upstream/master -- packages/phrases/src/locales/en/translation/admin-console/tabs.ts
+ 
+-# 3. If no conflicts in Class B files, rebase directly
++# ③ 无冲突时：直接 rebase
+ git rebase upstream/master
+ 
+-# 4. If Class B files have conflicts, resolve manually and continue
++# ④ 有冲突时：手动解决后继续
++# （搜索 [winamz] 注释可快速定位 WinAMZ 添加的内容）
+ git rebase --continue
+ 
+-# 5. Run DB migrations (new Logto version may have new migrations)
++# ⑤ 执行 Logto 新版本的数据库迁移（WinAMZ 的迁移文件不受影响）
+ pnpm -r build
+ node packages/cli/bin/logto.js database alteration deploy latest
+ 
+-# 6. Verify
+-curl http://localhost:4001/api/status          # Logto core normal
+-curl http://localhost:4001/api/winamz/agents   # WinAMZ routes normal
++# ⑥ 验证所有服务正常
++curl http://localhost:4001/api/status            # Logto 核心正常
++curl http://localhost:4001/api/winamz/agents     # WinAMZ 路由正常
+ ```
+ 
+ ---
+ 
+-## Version Compatibility Record
++## B 类 Commit 格式规范
+ 
+-| WinAMZ Version | Based on Logto Version | Class B Conflict Files | Resolution |
+-|----------------|------------------------|------------------------|------------|
+-| v0.1           | v1.26.0                | None                   | -          |
++所有修改 Logto 现有文件的 commit 使用以下格式，便于 cherry-pick 和审查：
+ 
+----
++```
++[winamz] <改动描述>
+ 
+-## Class B Commit Format
++Modified files:
++- packages/core/src/routes/init.ts: 挂载 winamz 路由
++- packages/console/src/hooks/use-console-routes/index.tsx: 添加 winamz 路由声明
++```
+ 
+-All commits modifying Logto existing files use this format:
++在上游 rebase 后，cherry-pick 所有 winamz commits：
++```bash
++# 列出所有 [winamz] commits（按时间正序）
++git log --oneline --grep="^\[winamz\]" origin/master | awk '{print $1}' | tac
++
++# 批量 cherry-pick（在 rebase 后的新 HEAD 上执行）
++git log --oneline --grep="^\[winamz\]" origin/master | awk '{print $1}' | tac | xargs git cherry-pick
+ ```
+-[winamz] <description>
+ 
+-Files modified:
+-- packages/core/src/routes/init.ts: mount winamz routes
+-- ...
++---
++
++## phrases 包重新编译
++
++每次修改 `packages/phrases/src/` 下的文件后，必须重新编译，否则 Admin Console 不会加载新的 i18n key：
++
++```bash
++cd packages/phrases
++pnpm build   # 执行 rm -rf lib/ && tsc
+ ```
+ 
+-To cherry-pick all winamz commits after upstream rebase:
++> **原因**：Console dev server（Vite）从 `packages/phrases/lib/` 引用编译产物，而非 TypeScript 源文件。
++
++---
++
++## 版本兼容记录
++
++| WinAMZ 版本 | 基于 Logto 版本 | B 类冲突文件 | 处理方式 |
++|-------------|-----------------|-------------|----------|
++| v0.1 | v1.26.0 | 无 | — |
++
++---
++
++## 新增 WinAMZ DB 迁移后的注意事项
++
++WinAMZ 迁移文件**不通过** Logto 的 `alteration` 系统管理，需手动执行：
++
+ ```bash
+-git log --oneline --grep="^\[winamz\]" origin/master | awk '{print $1}' | tac | xargs git cherry-pick
++# 查看迁移文件内容并执行
++psql $DATABASE_URL <<'SQL'
++  -- 来自 winamz-001-create-tables.ts
++  CREATE TABLE IF NOT EXISTS winamz_agents ( ... );
++  CREATE TABLE IF NOT EXISTS winamz_agent_grants ( ... );
++  CREATE TABLE IF NOT EXISTS winamz_audit_logs ( ... );
++SQL
++
++# 外键约束（需先确认 organizations 和 users 表存在）
++psql $DATABASE_URL <<'SQL'
++  -- 来自 winamz-002-add-fk-constraints.ts
++  ALTER TABLE winamz_agents
++    ADD CONSTRAINT fk_winamz_agents_org
++      FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE;
++  ALTER TABLE winamz_agents
++    ADD CONSTRAINT fk_winamz_agents_owner
++      FOREIGN KEY (owner_user_id) REFERENCES users(id) ON DELETE SET NULL;
++SQL
+ ```
+diff --git a/packages/console/src/hooks/use-console-routes/index.tsx b/packages/console/src/hooks/use-console-routes/index.tsx
+index 88497e8c8..427899124 100644
+--- a/packages/console/src/hooks/use-console-routes/index.tsx
++++ b/packages/console/src/hooks/use-console-routes/index.tsx
+@@ -22,7 +22,7 @@ import { useTenantSettings } from './routes/tenant-settings';
+ import { users } from './routes/users';
+ import { webhooks } from './routes/webhooks';
+ // [winamz] AI agent governance routes
+-import { winamzAgents, winamzGrants, winamzAudit } from './routes/winamz';
++import { winamzAgents, winamzAgentDetails, winamzGrants, winamzAudit } from './routes/winamz';
+ 
+ const Dashboard = safeLazy(async () => import('@/pages/Dashboard'));
+ const GetStarted = safeLazy(async () => import('@/pages/GetStarted'));
+@@ -55,6 +55,7 @@ export const useConsoleRoutes = () => {
+         customizeJwt,
+         // [winamz] AI agent governance routes
+         winamzAgents,
++        winamzAgentDetails,
+         winamzGrants,
+         winamzAudit
+       ),
+diff --git a/packages/console/src/hooks/use-console-routes/routes/winamz.tsx b/packages/console/src/hooks/use-console-routes/routes/winamz.tsx
+index 748ae8f7a..a9f794e5f 100644
+--- a/packages/console/src/hooks/use-console-routes/routes/winamz.tsx
++++ b/packages/console/src/hooks/use-console-routes/routes/winamz.tsx
+@@ -8,6 +8,7 @@ import { type RouteObject } from 'react-router-dom';
+ import { safeLazy } from 'react-safe-lazy';
+ 
+ const WinamzAgents = safeLazy(async () => import('@/pages/winamz/Agents'));
++const WinamzAgentDetails = safeLazy(async () => import('@/pages/winamz/AgentDetails'));
+ const WinamzGrants = safeLazy(async () => import('@/pages/winamz/Grants'));
+ const WinamzAudit = safeLazy(async () => import('@/pages/winamz/Audit'));
+ 
+@@ -16,6 +17,11 @@ export const winamzAgents: RouteObject = {
+   element: <WinamzAgents />,
+ };
+ 
++export const winamzAgentDetails: RouteObject = {
++  path: 'winamz/agents/:id',
++  element: <WinamzAgentDetails />,
++};
++
+ export const winamzGrants: RouteObject = {
+   path: 'winamz/grants',
+   element: <WinamzGrants />,
+diff --git a/packages/console/src/pages/winamz/AgentDetails.tsx b/packages/console/src/pages/winamz/AgentDetails.tsx
+new file mode 100644
+index 000000000..587797b0b
+--- /dev/null
++++ b/packages/console/src/pages/winamz/AgentDetails.tsx
+@@ -0,0 +1,300 @@
++/**
++ * WinAMZ AI Agent Details page.
++ * Allows admins to view, edit, manage status, and delete an AI agent.
++ *
++ * [winamz] New file - no conflict with upstream Logto updates.
++ */
++
++import { useCallback, useEffect, useState } from 'react';
++import { useForm } from 'react-hook-form';
++import { useParams } from 'react-router-dom';
++import useSWR from 'swr';
++
++import DetailsPage from '@/components/DetailsPage';
++import Button from '@/ds-components/Button';
++import Card from '@/ds-components/Card';
++import DeleteConfirmModal from '@/ds-components/DeleteConfirmModal';
++import DynamicT from '@/ds-components/DynamicT';
++import FormField from '@/ds-components/FormField';
++import Tag from '@/ds-components/Tag';
++import TextInput from '@/ds-components/TextInput';
++import useApi, { type RequestError } from '@/hooks/use-api';
++import useTenantPathname from '@/hooks/use-tenant-pathname';
++import { trySubmitSafe } from '@/utils/form';
++
++type Agent = {
++  id: string;
++  name: string;
++  type: 'personal' | 'org';
++  orgId: string;
++  ownerUserId?: string | null;
++  logtoAppId?: string | null;
++  status: 'pending_review' | 'approved' | 'rejected' | 'suspended';
++  requestedScopes: string[];
++  createdAt: string;
++};
++
++type FormData = {
++  name: string;
++  requestedScopes: string;
++};
++
++const statusTagMap: Record<Agent['status'], 'info' | 'success' | 'error' | 'alert'> = {
++  pending_review: 'alert',
++  approved: 'success',
++  rejected: 'error',
++  suspended: 'info',
++};
++
++const agentsPath = '/winamz/agents';
++
++function AgentDetails() {
++  const { id } = useParams();
++  const { navigate } = useTenantPathname();
++  const api = useApi();
++
++  const {
++    data: agent,
++    error,
++    mutate,
++  } = useSWR<Agent, RequestError>(id && `api/winamz/agents/${id}`);
++
++  const [isDeleting, setIsDeleting] = useState(false);
++  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
++
++  const {
++    register,
++    handleSubmit,
++    reset,
++    formState: { errors, isSubmitting, isDirty },
++  } = useForm<FormData>();
++
++  useEffect(() => {
++    if (agent) {
++      reset({
++        name: agent.name,
++        requestedScopes: agent.requestedScopes.join(', '),
++      });
++    }
++  }, [agent, reset]);
++
++  const onSave = handleSubmit(
++    trySubmitSafe(async ({ name, requestedScopes }) => {
++      const scopes = requestedScopes
++        .split(',')
++        .map((s) => s.trim())
++        .filter(Boolean);
++      const updated = await api
++        .patch(`api/winamz/agents/${id!}`, { json: { name, requestedScopes: scopes } })
++        .json<Agent>();
++      void mutate(updated);
++      reset({ name: updated.name, requestedScopes: updated.requestedScopes.join(', ') });
++    })
++  );
++
++  const handleApprove = useCallback(async () => {
++    const updated = await api.post(`api/winamz/agents/${id!}/approve`).json<Agent>();
++    void mutate(updated);
++  }, [api, id, mutate]);
++
++  const handleSuspend = useCallback(async () => {
++    const updated = await api.post(`api/winamz/agents/${id!}/suspend`).json<Agent>();
++    void mutate(updated);
++  }, [api, id, mutate]);
++
++  const handleRestore = useCallback(async () => {
++    const updated = await api.post(`api/winamz/agents/${id!}/restore`).json<Agent>();
++    void mutate(updated);
++  }, [api, id, mutate]);
++
++  const handleDelete = useCallback(async () => {
++    if (!id || isDeleting) {
++      return;
++    }
++    setIsDeleting(true);
++    try {
++      await api.delete(`api/winamz/agents/${id}`);
++      navigate(agentsPath);
++    } finally {
++      setIsDeleting(false);
++    }
++  }, [api, id, isDeleting, navigate]);
++
++  return (
++    <DetailsPage
++      backLink={agentsPath}
++      backLinkTitle="tabs.winamz_agents"
++      isLoading={!agent && !error}
++      error={error}
++    >
++      {agent && (
++        <>
++          {/* Header */}
++          <Card>
++            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
++              <h2 style={{ margin: 0 }}>{agent.name}</h2>
++              <Tag type="state" status={statusTagMap[agent.status]}>
++                {agent.status.replace(/_/g, ' ')}
++              </Tag>
++            </div>
++            <div
++              style={{
++                fontSize: 12,
++                color: 'var(--color-text-secondary)',
++                fontFamily: 'monospace',
++                marginTop: 8,
++              }}
++            >
++              {agent.id}
++            </div>
++          </Card>
++
++          {/* Edit form */}
++          <Card>
++            <form>
++              <FormField isRequired title="general.name">
++                <TextInput
++                  error={Boolean(errors.name)}
++                  {...register('name', { required: true })}
++                />
++              </FormField>
++              <FormField title="winamz.field_type">
++                <div style={{ display: 'flex', alignItems: 'center', height: 36 }}>
++                  <Tag type="state" status={agent.type === 'personal' ? 'info' : 'success'}>
++                    {agent.type === 'personal' ? 'Personal' : 'Organization'}
++                  </Tag>
++                </div>
++              </FormField>
++              <FormField title="winamz.field_organization_id">
++                <div
++                  style={{
++                    fontFamily: 'monospace',
++                    fontSize: 14,
++                    padding: '8px 12px',
++                    background: 'var(--color-surface-variant)',
++                    borderRadius: 4,
++                    color: 'var(--color-text-secondary)',
++                  }}
++                >
++                  {agent.orgId}
++                </div>
++              </FormField>
++              {agent.type === 'personal' && (
++                <FormField title="winamz.field_owner_user_id">
++                  <div
++                    style={{
++                      fontFamily: 'monospace',
++                      fontSize: 14,
++                      padding: '8px 12px',
++                      background: 'var(--color-surface-variant)',
++                      borderRadius: 4,
++                      color: 'var(--color-text-secondary)',
++                    }}
++                  >
++                    {agent.ownerUserId ?? '—'}
++                  </div>
++                </FormField>
++              )}
++              <FormField title="winamz.field_logto_app_id">
++                <div
++                  style={{
++                    fontFamily: 'monospace',
++                    fontSize: 14,
++                    padding: '8px 12px',
++                    background: 'var(--color-surface-variant)',
++                    borderRadius: 4,
++                    color: 'var(--color-text-secondary)',
++                  }}
++                >
++                  {agent.logtoAppId ?? '—'}
++                </div>
++              </FormField>
++              <FormField title="winamz.field_requested_scopes">
++                <TextInput
++                  placeholder="scope1, scope2, scope3"
++                  {...register('requestedScopes')}
++                />
++              </FormField>
++              <div style={{ marginTop: 16 }}>
++                <Button
++                  type="primary"
++                  title="general.save_changes"
++                  isLoading={isSubmitting}
++                  disabled={!isDirty}
++                  onClick={onSave}
++                />
++              </div>
++            </form>
++          </Card>
++
++          {/* Status actions */}
++          {agent.status !== 'rejected' && (
++            <Card>
++              <div
++                style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: 'var(--color-text)' }}
++              >
++                <DynamicT forKey="winamz.section_status_management" />
++              </div>
++              <div style={{ display: 'flex', gap: 8 }}>
++                {agent.status === 'pending_review' && (
++                  <Button
++                    type="primary"
++                    title="winamz.action_approve"
++                    onClick={() => {
++                      void handleApprove();
++                    }}
++                  />
++                )}
++                {agent.status === 'approved' && (
++                  <Button
++                    type="danger"
++                    title="winamz.action_suspend"
++                    onClick={() => {
++                      void handleSuspend();
++                    }}
++                  />
++                )}
++                {agent.status === 'suspended' && (
++                  <Button
++                    title="winamz.action_restore"
++                    onClick={() => {
++                      void handleRestore();
++                    }}
++                  />
++                )}
++              </div>
++            </Card>
++          )}
++
++          {/* Danger zone */}
++          <Card>
++            <div
++              style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: 'var(--color-error)' }}
++            >
++              <DynamicT forKey="winamz.section_danger_zone" />
++            </div>
++            <Button
++              type="danger"
++              title="winamz.action_delete_agent"
++              onClick={() => {
++                setIsDeleteModalOpen(true);
++              }}
++            />
++            <DeleteConfirmModal
++              isOpen={isDeleteModalOpen}
++              isLoading={isDeleting}
++              onCancel={() => {
++                setIsDeleteModalOpen(false);
++              }}
++              onConfirm={handleDelete}
++            >
++              <DynamicT forKey="winamz.delete_agent_confirm" />
++            </DeleteConfirmModal>
++          </Card>
++        </>
++      )}
++    </DetailsPage>
++  );
++}
++
++export default AgentDetails;
+diff --git a/packages/console/src/pages/winamz/Agents.tsx b/packages/console/src/pages/winamz/Agents.tsx
+index 14894b48b..d3404c362 100644
+--- a/packages/console/src/pages/winamz/Agents.tsx
++++ b/packages/console/src/pages/winamz/Agents.tsx
+@@ -6,13 +6,23 @@
+  */
+ 
+ import { useCallback, useEffect, useState } from 'react';
+-import { useTranslation } from 'react-i18next';
+ 
++import Plus from '@/assets/icons/plus.svg?react';
++import RolesEmptyDark from '@/assets/images/roles-empty-dark.svg?react';
++import RolesEmpty from '@/assets/images/roles-empty.svg?react';
++import EmptyDataPlaceholder from '@/components/EmptyDataPlaceholder';
++import ItemPreview from '@/components/ItemPreview';
+ import Button from '@/ds-components/Button';
++import CardTitle from '@/ds-components/CardTitle';
+ import Search from '@/ds-components/Search';
+ import Table from '@/ds-components/Table';
++import TablePlaceholder from '@/ds-components/Table/TablePlaceholder';
+ import Tag from '@/ds-components/Tag';
+ import useApi from '@/hooks/use-api';
++import useTenantPathname from '@/hooks/use-tenant-pathname';
++import pageLayout from '@/scss/page-layout.module.scss';
++
++import CreateAgentModal from './components/CreateAgentModal';
+ 
+ type Agent = {
+   id: string;
+@@ -33,14 +43,15 @@ const statusTagMap: Record<Agent['status'], 'info' | 'success' | 'error' | 'aler
+ };
+ 
+ function WinamzAgents() {
+-  const { t } = useTranslation(undefined, { keyPrefix: 'admin_console' });
+   const api = useApi();
++  const { navigate } = useTenantPathname();
+ 
+   const [agents, setAgents] = useState<Agent[]>([]);
+   const [total, setTotal] = useState(0);
+   const [isLoading, setIsLoading] = useState(true);
+   const [keyword, setKeyword] = useState('');
+   const [page, setPage] = useState(1);
++  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+   const pageSize = 20;
+ 
+   const fetchAgents = useCallback(async () => {
+@@ -98,37 +109,44 @@ function WinamzAgents() {
+     : agents;
+ 
+   return (
+-    <div>
+-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+-        <h1>AI Agents</h1>
+-        <Search
+-          defaultValue={keyword}
+-          isClearable={Boolean(keyword)}
+-          placeholder="Search agents..."
+-          onSearch={setKeyword}
+-          onClearSearch={() => { setKeyword(''); }}
++    <div className={pageLayout.container}>
++      <div className={pageLayout.headline}>
++        <CardTitle
++          title="tabs.winamz_agents"
++          subtitle="winamz.agents_subtitle"
++        />
++        <Button
++          icon={<Plus />}
++          type="primary"
++          size="large"
++          title="winamz.action_create_agent"
++          onClick={() => {
++            setIsCreateModalOpen(true);
++          }}
+         />
+       </div>
+       <Table
++        className={pageLayout.table}
+         isLoading={isLoading}
+         rowIndexKey="id"
+         columns={[
+           {
+             title: 'Name',
+             dataIndex: 'name',
+-            render: (_, agent) => (
+-              <div>
+-                <div style={{ fontWeight: 600 }}>{agent.name}</div>
+-                <div style={{ fontSize: 12, color: '#888', fontFamily: 'monospace' }}>
+-                  {agent.id}
+-                </div>
+-              </div>
++            colSpan: 5,
++            render: (agent) => (
++              <ItemPreview
++                title={agent.name}
++                subtitle={agent.id}
++                to={`/winamz/agents/${agent.id}`}
++              />
+             ),
+           },
+           {
+             title: 'Type',
+             dataIndex: 'type',
+-            render: (_, agent) => (
++            colSpan: 2,
++            render: (agent) => (
+               <Tag type="state" status={agent.type === 'personal' ? 'info' : 'success'}>
+                 {agent.type === 'personal' ? 'Personal' : 'Org'}
+               </Tag>
+@@ -137,16 +155,18 @@ function WinamzAgents() {
+           {
+             title: 'Status',
+             dataIndex: 'status',
+-            render: (_, agent) => (
++            colSpan: 3,
++            render: (agent) => (
+               <Tag type="state" status={statusTagMap[agent.status]}>
+-                {agent.status.replace('_', ' ')}
++                {agent.status.replace(/_/g, ' ')}
+               </Tag>
+             ),
+           },
+           {
+             title: 'Scopes',
+             dataIndex: 'requestedScopes',
+-            render: (_, agent) => (
++            colSpan: 3,
++            render: (agent) => (
+               <div style={{ fontSize: 12 }}>
+                 {agent.requestedScopes.length === 0
+                   ? '—'
+@@ -157,29 +177,41 @@ function WinamzAgents() {
+           {
+             title: 'Actions',
+             dataIndex: 'actions',
+-            render: (_, agent) => (
+-              <div style={{ display: 'flex', gap: 8 }}>
++            colSpan: 3,
++            render: (agent) => (
++              <div
++                style={{ display: 'flex', gap: 8 }}
++                onClick={(e) => {
++                  e.stopPropagation();
++                }}
++              >
+                 {agent.status === 'pending_review' && (
+                   <Button
+                     size="small"
+-                    title="Approve"
++                    title="winamz.action_approve"
+                     type="primary"
+-                    onClick={() => { void handleApprove(agent.id); }}
++                    onClick={() => {
++                      void handleApprove(agent.id);
++                    }}
+                   />
+                 )}
+                 {agent.status === 'approved' && (
+                   <Button
+                     size="small"
+-                    title="Suspend"
++                    title="winamz.action_suspend"
+                     type="danger"
+-                    onClick={() => { void handleSuspend(agent.id); }}
++                    onClick={() => {
++                      void handleSuspend(agent.id);
++                    }}
+                   />
+                 )}
+                 {agent.status === 'suspended' && (
+                   <Button
+                     size="small"
+-                    title="Restore"
+-                    onClick={() => { void handleRestore(agent.id); }}
++                    title="winamz.action_restore"
++                    onClick={() => {
++                      void handleRestore(agent.id);
++                    }}
+                   />
+                 )}
+               </div>
+@@ -187,13 +219,58 @@ function WinamzAgents() {
+           },
+         ]}
+         rowGroups={[{ key: 'agents', data: filteredAgents }]}
++        rowClickHandler={(agent) => {
++          navigate(`/winamz/agents/${agent.id}`);
++        }}
++        filter={
++          <Search
++            defaultValue={keyword}
++            isClearable={Boolean(keyword)}
++            placeholder="Search agents..."
++            onSearch={setKeyword}
++            onClearSearch={() => {
++              setKeyword('');
++            }}
++          />
++        }
+         pagination={{
+           page,
+           totalCount: total,
+           pageSize,
+           onChange: setPage,
+         }}
+-        placeholder="No agents found"
++        placeholder={
++          keyword ? (
++            <EmptyDataPlaceholder />
++          ) : (
++            <TablePlaceholder
++              image={<RolesEmpty />}
++              imageDark={<RolesEmptyDark />}
++              title="tabs.winamz_agents"
++              description="tabs.winamz_agents_placeholder_description"
++              action={
++                <Button
++                  title="winamz.action_create_agent"
++                  type="primary"
++                  size="large"
++                  icon={<Plus />}
++                  onClick={() => {
++                    setIsCreateModalOpen(true);
++                  }}
++                />
++              }
++            />
++          )
++        }
++      />
++      <CreateAgentModal
++        isOpen={isCreateModalOpen}
++        onClose={(createdId) => {
++          setIsCreateModalOpen(false);
++          if (createdId) {
++            void fetchAgents();
++          }
++        }}
+       />
+     </div>
+   );
+diff --git a/packages/console/src/pages/winamz/Audit.tsx b/packages/console/src/pages/winamz/Audit.tsx
+index b21c4f4a1..774561285 100644
+--- a/packages/console/src/pages/winamz/Audit.tsx
++++ b/packages/console/src/pages/winamz/Audit.tsx
+@@ -7,10 +7,13 @@
+ 
+ import { useCallback, useEffect, useState } from 'react';
+ 
++import CardTitle from '@/ds-components/CardTitle';
++import DynamicT from '@/ds-components/DynamicT';
+ import Search from '@/ds-components/Search';
+ import Table from '@/ds-components/Table';
+ import Tag from '@/ds-components/Tag';
+ import useApi from '@/hooks/use-api';
++import pageLayout from '@/scss/page-layout.module.scss';
+ 
+ type AuditLog = {
+   id: string;
+@@ -69,68 +72,55 @@ function WinamzAudit() {
+   }, [fetchLogs]);
+ 
+   return (
+-    <div>
+-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+-        <h1>Agent Audit Log</h1>
+-        <Search
+-          defaultValue={keyword}
+-          isClearable={Boolean(keyword)}
+-          placeholder="Filter by agent ID..."
+-          onSearch={(kw) => {
+-            setKeyword(kw);
+-            setPage(1);
+-          }}
+-          onClearSearch={() => {
+-            setKeyword('');
+-            setPage(1);
+-          }}
++    <div className={pageLayout.container}>
++      <div className={pageLayout.headline}>
++        <CardTitle
++          title="tabs.winamz_audit"
++          subtitle="winamz.audit_subtitle"
+         />
+       </div>
+       <Table
++        className={pageLayout.table}
+         isLoading={isLoading}
+         rowIndexKey="id"
+         columns={[
+           {
+-            title: 'Event',
++            title: <DynamicT forKey="winamz.col_event" />,
+             dataIndex: 'eventType',
+-            render: (_, log) => (
+-              <Tag
+-                type="state"
+-                status={eventTypeColors[log.eventType] ?? 'info'}
+-              >
++            colSpan: 3,
++            render: (log) => (
++              <Tag type="state" status={eventTypeColors[log.eventType] ?? 'info'}>
+                 {log.eventType}
+               </Tag>
+             ),
+           },
+           {
+-            title: 'Agent ID',
++            title: <DynamicT forKey="winamz.col_agent_id" />,
+             dataIndex: 'agentId',
+-            render: (_, log) => (
+-              <span style={{ fontFamily: 'monospace', fontSize: 12 }}>
+-                {log.agentId ?? '—'}
+-              </span>
++            colSpan: 3,
++            render: (log) => (
++              <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{log.agentId ?? '—'}</span>
+             ),
+           },
+           {
+-            title: 'User ID',
++            title: <DynamicT forKey="winamz.col_user_id" />,
+             dataIndex: 'userId',
+-            render: (_, log) => (
+-              <span style={{ fontFamily: 'monospace', fontSize: 12 }}>
+-                {log.userId ?? '—'}
+-              </span>
++            colSpan: 2,
++            render: (log) => (
++              <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{log.userId ?? '—'}</span>
+             ),
+           },
+           {
+-            title: 'Resource',
++            title: <DynamicT forKey="winamz.col_resource" />,
+             dataIndex: 'resource',
+-            render: (_, log) => (
+-              <span style={{ fontSize: 12 }}>{log.resource ?? '—'}</span>
+-            ),
++            colSpan: 2,
++            render: (log) => <span style={{ fontSize: 12 }}>{log.resource ?? '—'}</span>,
+           },
+           {
+-            title: 'Metadata',
++            title: <DynamicT forKey="winamz.col_metadata" />,
+             dataIndex: 'metadata',
+-            render: (_, log) =>
++            colSpan: 3,
++            render: (log) =>
+               log.metadata ? (
+                 <pre
+                   style={{
+@@ -148,9 +138,10 @@ function WinamzAudit() {
+               ),
+           },
+           {
+-            title: 'Time',
++            title: <DynamicT forKey="winamz.col_time" />,
+             dataIndex: 'createdAt',
+-            render: (_, log) => (
++            colSpan: 3,
++            render: (log) => (
+               <span style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
+                 {new Date(log.createdAt).toLocaleString()}
+               </span>
+@@ -158,6 +149,21 @@ function WinamzAudit() {
+           },
+         ]}
+         rowGroups={[{ key: 'logs', data: logs }]}
++        filter={
++          <Search
++            defaultValue={keyword}
++            isClearable={Boolean(keyword)}
++            placeholder="Filter by agent ID..."
++            onSearch={(kw) => {
++              setKeyword(kw);
++              setPage(1);
++            }}
++            onClearSearch={() => {
++              setKeyword('');
++              setPage(1);
++            }}
++          />
++        }
+         pagination={{
+           page,
+           totalCount: total,
+diff --git a/packages/console/src/pages/winamz/Grants.tsx b/packages/console/src/pages/winamz/Grants.tsx
+index 4a956be38..a70652f53 100644
+--- a/packages/console/src/pages/winamz/Grants.tsx
++++ b/packages/console/src/pages/winamz/Grants.tsx
+@@ -8,10 +8,13 @@
+ import { useCallback, useEffect, useState } from 'react';
+ 
+ import Button from '@/ds-components/Button';
++import CardTitle from '@/ds-components/CardTitle';
++import DynamicT from '@/ds-components/DynamicT';
+ import Search from '@/ds-components/Search';
+ import Table from '@/ds-components/Table';
+ import Tag from '@/ds-components/Tag';
+ import useApi from '@/hooks/use-api';
++import pageLayout from '@/scss/page-layout.module.scss';
+ 
+ type Grant = {
+   id: string;
+@@ -61,9 +64,7 @@ function WinamzGrants() {
+   const handleRevoke = useCallback(
+     async (grantId: string) => {
+       const reason = window.prompt('Reason for revocation (optional):') ?? undefined;
+-      await api
+-        .post(`api/winamz/grants/${grantId}/revoke`, { json: { reason } })
+-        .json();
++      await api.post(`api/winamz/grants/${grantId}/revoke`, { json: { reason } }).json();
+       void fetchGrants();
+     },
+     [api, fetchGrants]
+@@ -71,84 +72,82 @@ function WinamzGrants() {
+ 
+   const filteredGrants = keyword
+     ? grants.filter(
+-        (g) =>
+-          g.agentId.includes(keyword) ||
+-          g.userId.includes(keyword) ||
+-          g.id.includes(keyword)
++        (g) => g.agentId.includes(keyword) || g.userId.includes(keyword) || g.id.includes(keyword)
+       )
+     : grants;
+ 
+   return (
+-    <div>
+-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+-        <h1>Delegation Grants</h1>
+-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+-          <Button
+-            size="small"
+-            title={showRevoked ? 'Show active' : 'Show revoked'}
+-            onClick={() => {
+-              setShowRevoked((prev) => !prev);
+-              setPage(1);
+-            }}
+-          />
+-          <Search
+-            defaultValue={keyword}
+-            isClearable={Boolean(keyword)}
+-            placeholder="Search by agent/user ID..."
+-            onSearch={setKeyword}
+-            onClearSearch={() => { setKeyword(''); }}
+-          />
+-        </div>
++    <div className={pageLayout.container}>
++      <div className={pageLayout.headline}>
++        <CardTitle
++          title="tabs.winamz_grants"
++          subtitle="winamz.grants_subtitle"
++        />
++        <Button
++          size="small"
++          title={showRevoked ? 'winamz.action_show_active' : 'winamz.action_show_revoked'}
++          onClick={() => {
++            setShowRevoked((prev) => !prev);
++            setPage(1);
++          }}
++        />
+       </div>
+       <Table
++        className={pageLayout.table}
+         isLoading={isLoading}
+         rowIndexKey="id"
+         columns={[
+           {
+-            title: 'Grant ID',
++            title: <DynamicT forKey="winamz.col_grant_id" />,
+             dataIndex: 'id',
+-            render: (_, grant) => (
++            colSpan: 3,
++            render: (grant) => (
+               <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{grant.id}</span>
+             ),
+           },
+           {
+-            title: 'Agent ID',
++            title: <DynamicT forKey="winamz.col_agent_id" />,
+             dataIndex: 'agentId',
+-            render: (_, grant) => (
++            colSpan: 3,
++            render: (grant) => (
+               <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{grant.agentId}</span>
+             ),
+           },
+           {
+-            title: 'User ID',
++            title: <DynamicT forKey="winamz.col_user_id" />,
+             dataIndex: 'userId',
+-            render: (_, grant) => (
++            colSpan: 3,
++            render: (grant) => (
+               <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{grant.userId}</span>
+             ),
+           },
+           {
+-            title: 'Scopes',
++            title: <DynamicT forKey="winamz.col_scopes" />,
+             dataIndex: 'grantedScopes',
+-            render: (_, grant) => (
++            colSpan: 2,
++            render: (grant) => (
+               <div style={{ fontSize: 12 }}>{grant.grantedScopes.join(', ') || '—'}</div>
+             ),
+           },
+           {
+-            title: 'Status',
++            title: <DynamicT forKey="winamz.col_status" />,
+             dataIndex: 'status',
+-            render: (_, grant) => (
++            colSpan: 2,
++            render: (grant) => (
+               <Tag type="state" status={grant.revokedAt ? 'error' : 'success'}>
+                 {grant.revokedAt ? 'Revoked' : 'Active'}
+               </Tag>
+             ),
+           },
+           {
+-            title: 'Actions',
++            title: <DynamicT forKey="winamz.col_actions" />,
+             dataIndex: 'actions',
+-            render: (_, grant) => {
++            colSpan: 3,
++            render: (grant) => {
+               if (grant.revokedAt) {
+                 return (
+                   <span style={{ fontSize: 12, color: '#888' }}>
+-                    Revoked {new Date(grant.revokedAt).toLocaleDateString()}
++                    {new Date(grant.revokedAt).toLocaleDateString()}
+                   </span>
+                 );
+               }
+@@ -156,15 +155,28 @@ function WinamzGrants() {
+               return (
+                 <Button
+                   size="small"
+-                  title="Revoke (Kill Switch)"
++                  title="winamz.action_revoke"
+                   type="danger"
+-                  onClick={() => { void handleRevoke(grant.id); }}
++                  onClick={() => {
++                    void handleRevoke(grant.id);
++                  }}
+                 />
+               );
+             },
+           },
+         ]}
+         rowGroups={[{ key: 'grants', data: filteredGrants }]}
++        filter={
++          <Search
++            defaultValue={keyword}
++            isClearable={Boolean(keyword)}
++            placeholder="Search by agent / user ID..."
++            onSearch={setKeyword}
++            onClearSearch={() => {
++              setKeyword('');
++            }}
++          />
++        }
+         pagination={{
+           page,
+           totalCount: total,
+diff --git a/packages/console/src/pages/winamz/components/CreateAgentModal.tsx b/packages/console/src/pages/winamz/components/CreateAgentModal.tsx
+new file mode 100644
+index 000000000..5b329614a
+--- /dev/null
++++ b/packages/console/src/pages/winamz/components/CreateAgentModal.tsx
+@@ -0,0 +1,211 @@
++/**
++ * WinAMZ Create AI Agent modal.
++ *
++ * [winamz] New file - no conflict with upstream Logto updates.
++ */
++
++import { useEffect, useState } from 'react';
++import { Controller, useForm } from 'react-hook-form';
++import ReactModal from 'react-modal';
++import useSWR from 'swr';
++
++import Button from '@/ds-components/Button';
++import FormField from '@/ds-components/FormField';
++import ModalLayout from '@/ds-components/ModalLayout';
++import Select from '@/ds-components/Select';
++import MultiSelect, { type Option } from '@/ds-components/Select/MultiSelect';
++import TextInput from '@/ds-components/TextInput';
++import useApi from '@/hooks/use-api';
++import useSearchValues from '@/hooks/use-search-values';
++import modalStyles from '@/scss/modal.module.scss';
++import { trySubmitSafe } from '@/utils/form';
++import { buildUrl, formatSearchKeyword } from '@/utils/url';
++
++type OrgItem = { id: string; name: string };
++type UserItem = {
++  id: string;
++  name?: string | null;
++  username?: string | null;
++  primaryEmail?: string | null;
++};
++
++type FormData = {
++  name: string;
++  type: 'personal' | 'org';
++  org: Array<Option<string>>;
++  ownerUser: Array<Option<string>>;
++};
++
++type Props = {
++  readonly isOpen: boolean;
++  readonly onClose: (createdId?: string) => void;
++};
++
++const typeOptions = [
++  { value: 'personal' as const, title: 'Personal' },
++  { value: 'org' as const, title: 'Organization' },
++];
++
++const getUserDisplayTitle = (user: UserItem): string =>
++  user.name ?? user.username ?? user.primaryEmail ?? user.id;
++
++function CreateAgentModal({ isOpen, onClose }: Props) {
++  const api = useApi();
++  const [orgKeyword, setOrgKeyword] = useState('');
++  const [ownerKeyword, setOwnerKeyword] = useState('');
++
++  // Organization search (SchemaRouter uses `q` param)
++  const { data: orgs, isLoading: isOrgsLoading } = useSearchValues<OrgItem>(
++    'api/organizations',
++    orgKeyword
++  );
++
++  // User search (admin-user search uses `search` param with fuzzy wildcards)
++  const { data: usersData, isLoading: isUsersLoading } = useSWR<[UserItem[], number]>(
++    ownerKeyword
++      ? buildUrl('api/users', {
++          search: formatSearchKeyword(ownerKeyword),
++          page: '1',
++          page_size: '10',
++        })
++      : null
++  );
++  const users = usersData?.[0] ?? [];
++
++  const {
++    reset,
++    register,
++    control,
++    watch,
++    setValue,
++    handleSubmit,
++    formState: { errors, isSubmitting },
++  } = useForm<FormData>({ defaultValues: { type: 'org', org: [], ownerUser: [] } });
++
++  const agentType = watch('type');
++
++  useEffect(() => {
++    if (isOpen) {
++      reset({ type: 'org', org: [], ownerUser: [] });
++      setOrgKeyword('');
++      setOwnerKeyword('');
++    }
++  }, [isOpen, reset]);
++
++  // Clear owner selection when switching to org type
++  useEffect(() => {
++    if (agentType === 'org') {
++      setValue('ownerUser', []);
++      setOwnerKeyword('');
++    }
++  }, [agentType, setValue]);
++
++  const submit = handleSubmit(
++    trySubmitSafe(async ({ name, type, org, ownerUser }) => {
++      const orgId = org[0]!.value;
++      const ownerUserId = ownerUser[0]?.value;
++      const body: Record<string, unknown> = { name, type, orgId };
++      if (type === 'personal' && ownerUserId) {
++        body.ownerUserId = ownerUserId;
++      }
++      const { id } = await api
++        .post('api/winamz/agents', { json: body })
++        .json<{ id: string }>();
++      onClose(id);
++    })
++  );
++
++  return (
++    <ReactModal
++      isOpen={isOpen}
++      className={modalStyles.content}
++      overlayClassName={modalStyles.overlay}
++      onRequestClose={() => {
++        onClose();
++      }}
++    >
++      <ModalLayout
++        title="tabs.winamz_create_agent"
++        footer={
++          <Button
++            type="primary"
++            title="general.create"
++            isLoading={isSubmitting}
++            onClick={submit}
++          />
++        }
++        onClose={onClose}
++      >
++        <form>
++          <FormField isRequired title="general.name">
++            <TextInput
++              // eslint-disable-next-line jsx-a11y/no-autofocus
++              autoFocus
++              error={Boolean(errors.name)}
++              {...register('name', { required: true })}
++            />
++          </FormField>
++
++          <FormField isRequired title="winamz.field_type">
++            <Controller
++              control={control}
++              name="type"
++              rules={{ required: true }}
++              render={({ field: { value, onChange } }) => (
++                <Select
++                  value={value}
++                  options={typeOptions}
++                  onChange={onChange}
++                  error={Boolean(errors.type)}
++                />
++              )}
++            />
++          </FormField>
++
++          <FormField isRequired title="winamz.field_organization">
++            <Controller
++              control={control}
++              name="org"
++              rules={{ validate: (v) => v.length > 0 }}
++              render={({ field: { value, onChange } }) => (
++                <MultiSelect
++                  value={value}
++                  options={orgs.map(({ id, name }) => ({ value: id, title: name }))}
++                  isOptionsLoading={isOrgsLoading}
++                  isReadOnly={value.length >= 1}
++                  error={Boolean(errors.org)}
++                  onSearch={setOrgKeyword}
++                  onChange={onChange}
++                />
++              )}
++            />
++          </FormField>
++
++          {agentType === 'personal' && (
++            <FormField title="winamz.field_owner_user">
++              <Controller
++                control={control}
++                name="ownerUser"
++                render={({ field: { value, onChange } }) => (
++                  <MultiSelect
++                    value={value}
++                    options={users.map((user) => ({
++                      value: user.id,
++                      title: getUserDisplayTitle(user),
++                    }))}
++                    isOptionsLoading={isUsersLoading}
++                    isReadOnly={value.length >= 1}
++                    onSearch={setOwnerKeyword}
++                    onChange={onChange}
++                  />
++                )}
++              />
++            </FormField>
++          )}
++        </form>
++      </ModalLayout>
++    </ReactModal>
++  );
++}
++
++export default CreateAgentModal;
+diff --git a/packages/core/src/routes/winamz/agents.ts b/packages/core/src/routes/winamz/agents.ts
+index cfe2deb7b..05a8cfdd5 100644
+--- a/packages/core/src/routes/winamz/agents.ts
++++ b/packages/core/src/routes/winamz/agents.ts
+@@ -9,6 +9,7 @@ import { generateStandardId } from '@logto/shared';
+ import { sql } from '@silverhand/slonik';
+ import { z } from 'zod';
+ 
++import RequestError from '#src/errors/RequestError/index.js';
+ import koaGuard from '#src/middleware/koa-guard.js';
+ import koaPagination from '#src/middleware/koa-pagination.js';
+ 
+@@ -156,10 +157,29 @@ export default function winamzAgentRoutes<T extends ManagementApiRouter>(
+     koaGuard({
+       body: agentCreateGuard,
+       response: agentResponseGuard,
+-      status: [201],
++      status: [201, 422],
+     }),
+     async (ctx, next) => {
+       const { name, type, orgId, ownerUserId, requestedScopes } = ctx.guard.body;
++
++      // Validate org exists
++      const org = await pool.maybeOne<{ id: string }>(
++        sql`SELECT id FROM organizations WHERE id = ${orgId}`
++      );
++      if (!org) {
++        throw new RequestError({ code: 'entity.not_found', status: 422 });
++      }
++
++      // For personal agents, validate ownerUserId exists
++      if (type === 'personal' && ownerUserId) {
++        const user = await pool.maybeOne<{ id: string }>(
++          sql`SELECT id FROM users WHERE id = ${ownerUserId}`
++        );
++        if (!user) {
++          throw new RequestError({ code: 'entity.not_found', status: 422 });
++        }
++      }
++
+       const id = generateStandardId();
+       const now = new Date();
+ 
+diff --git a/packages/phrases/src/locales/en/translation/admin-console/index.ts b/packages/phrases/src/locales/en/translation/admin-console/index.ts
+index b413a7a13..17180c9be 100644
+--- a/packages/phrases/src/locales/en/translation/admin-console/index.ts
++++ b/packages/phrases/src/locales/en/translation/admin-console/index.ts
+@@ -50,6 +50,8 @@ import users from './users.js';
+ import webhook_details from './webhook-details.js';
+ import webhooks from './webhooks.js';
+ import welcome from './welcome.js';
++// [winamz] AI agent management translations
++import winamz from './winamz.js';
+ 
+ const admin_console = {
+   title: 'Admin Console',
+@@ -107,6 +109,8 @@ const admin_console = {
+   inkeep_ai_bot,
+   user_identity_details,
+   enterprise_subscription,
++  // [winamz] AI agent management
++  winamz,
+ };
+ 
+ export default Object.freeze(admin_console);
+diff --git a/packages/phrases/src/locales/en/translation/admin-console/tabs.ts b/packages/phrases/src/locales/en/translation/admin-console/tabs.ts
+index 2a943ab1d..eb8091eb0 100644
+--- a/packages/phrases/src/locales/en/translation/admin-console/tabs.ts
++++ b/packages/phrases/src/locales/en/translation/admin-console/tabs.ts
+@@ -22,6 +22,10 @@ const tabs = {
+   winamz_agents: 'AI Agents',
+   winamz_grants: 'Delegations',
+   winamz_audit: 'Agent Audit',
++  winamz_create_agent: 'Create agent',
++  winamz_agents_placeholder_title: 'AI Agents',
++  winamz_agents_placeholder_description:
++    'Register and manage AI agents that act on behalf of users or organizations. Approve agents to let them obtain tokens and perform delegated actions.',
+ };
+ 
+ export default Object.freeze(tabs);
+diff --git a/packages/phrases/src/locales/en/translation/admin-console/winamz.ts b/packages/phrases/src/locales/en/translation/admin-console/winamz.ts
+new file mode 100644
+index 000000000..00519f323
+--- /dev/null
++++ b/packages/phrases/src/locales/en/translation/admin-console/winamz.ts
+@@ -0,0 +1,79 @@
++/**
++ * WinAMZ AI agent management - English translations.
++ *
++ * [winamz] New file - no conflict with upstream Logto updates.
++ */
++
++const winamz = {
++  // Page subtitles
++  agents_subtitle: 'Register and manage AI agents that act on behalf of users or organizations.',
++  grants_subtitle: 'View and manage user-to-agent delegation grants. Use the Kill Switch to revoke access immediately.',
++  audit_subtitle: 'Immutable audit trail of all AI agent lifecycle and delegation events.',
++
++  // Agent status labels
++  status_pending_review: 'Pending review',
++  status_approved: 'Approved',
++  status_rejected: 'Rejected',
++  status_suspended: 'Suspended',
++
++  // Agent type labels
++  type_personal: 'Personal',
++  type_org: 'Organization',
++
++  // Form field labels
++  field_type: 'Type',
++  field_organization: 'Organization',
++  field_organization_id: 'Organization ID',
++  field_owner_user: 'Owner user',
++  field_owner_user_id: 'Owner user ID',
++  field_logto_app_id: 'Logto app ID',
++  field_requested_scopes: 'Requested scopes',
++  field_scopes_placeholder: 'scope1, scope2, scope3',
++
++  // Column headers
++  col_name: 'Name',
++  col_type: 'Type',
++  col_status: 'Status',
++  col_scopes: 'Scopes',
++  col_actions: 'Actions',
++  col_grant_id: 'Grant ID',
++  col_agent_id: 'Agent ID',
++  col_user_id: 'User ID',
++  col_event: 'Event',
++  col_resource: 'Resource',
++  col_metadata: 'Metadata',
++  col_time: 'Time',
++
++  // Section headings
++  section_status_management: 'Status management',
++  section_danger_zone: 'Danger zone',
++
++  // Action buttons
++  action_create_agent: 'Create agent',
++  action_approve: 'Approve',
++  action_suspend: 'Suspend',
++  action_restore: 'Restore',
++  action_delete_agent: 'Delete agent',
++  action_revoke: 'Revoke (Kill Switch)',
++  action_show_active: 'Show active',
++  action_show_revoked: 'Show revoked',
++
++  // Grant status
++  grant_active: 'Active',
++  grant_revoked: 'Revoked',
++
++  // Delete confirmation
++  delete_agent_confirm: 'Are you sure you want to delete this agent? This action cannot be undone.',
++
++  // Empty states
++  no_agents: 'No agents found',
++  no_grants: 'No grants found',
++  no_audit_logs: 'No audit logs found',
++
++  // Search / filter placeholders
++  search_agents_placeholder: 'Search agents...',
++  search_grants_placeholder: 'Search by agent / user ID...',
++  search_audit_placeholder: 'Filter by agent ID...',
++};
++
++export default Object.freeze(winamz);
+diff --git a/packages/schemas/src/migrations/winamz-002-add-fk-constraints.ts b/packages/schemas/src/migrations/winamz-002-add-fk-constraints.ts
+new file mode 100644
+index 000000000..16d1213a7
+--- /dev/null
++++ b/packages/schemas/src/migrations/winamz-002-add-fk-constraints.ts
+@@ -0,0 +1,31 @@
++/**
++ * WinAMZ migration 002: add foreign key constraints to winamz_agents.
++ *
++ * [winamz] This is a WinAMZ-specific migration file.
++ * It does not modify any existing Logto tables.
++ *
++ * Run this after winamz-001-create-tables.ts has been applied.
++ *
++ * To apply manually:
++ *   psql $DATABASE_URL -c "$(cat packages/schemas/src/migrations/winamz-002-add-fk-constraints.ts | node -e "
++ *     let d=''; process.stdin.on('data',c=>d+=c).on('end',()=>{
++ *       const m = d.match(/export const up = \`([\s\S]*?)\`/);
++ *       if(m) process.stdout.write(m[1]);
++ *     });
++ *   ")"
++ */
++
++export const up = `
++  ALTER TABLE winamz_agents
++    ADD CONSTRAINT fk_winamz_agents_org
++      FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE;
++
++  ALTER TABLE winamz_agents
++    ADD CONSTRAINT fk_winamz_agents_owner
++      FOREIGN KEY (owner_user_id) REFERENCES users(id) ON DELETE SET NULL;
++`;
++
++export const down = `
++  ALTER TABLE winamz_agents DROP CONSTRAINT IF EXISTS fk_winamz_agents_org;
++  ALTER TABLE winamz_agents DROP CONSTRAINT IF EXISTS fk_winamz_agents_owner;
++`;
+diff --git a/pnpm-lock.yaml b/pnpm-lock.yaml
+index a33734a4e..5b729c8b3 100644
+--- a/pnpm-lock.yaml
++++ b/pnpm-lock.yaml
+@@ -38,7 +38,7 @@ overrides:
+ 
+ patchedDependencies:
+   tsup:
+-    hash: 248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd
++    hash: ejza5vcogi2dpo27l77wrlqt7y
+     path: patches/tsup.patch
+ 
+ importers:
+@@ -75,7 +75,7 @@ importers:
+         version: 8.11.3
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.0.0
+         version: 5.5.3
+@@ -476,7 +476,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -543,7 +543,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -601,7 +601,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -659,7 +659,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -720,7 +720,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -784,7 +784,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -848,7 +848,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -909,7 +909,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -976,7 +976,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -1034,7 +1034,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -1092,7 +1092,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -1150,7 +1150,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -1208,7 +1208,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -1269,7 +1269,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -1339,7 +1339,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -1400,7 +1400,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -1455,7 +1455,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -1504,7 +1504,7 @@ importers:
+         version: 3.5.3
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -1562,7 +1562,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -1620,7 +1620,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -1678,7 +1678,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -1739,7 +1739,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -1800,7 +1800,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -1861,7 +1861,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -1919,7 +1919,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -1977,7 +1977,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -2035,7 +2035,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -2093,7 +2093,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -2151,7 +2151,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -2209,7 +2209,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -2267,7 +2267,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -2334,7 +2334,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -2404,7 +2404,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -2462,7 +2462,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -2517,7 +2517,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -2575,7 +2575,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -2639,7 +2639,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -2697,7 +2697,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -2758,7 +2758,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -2816,7 +2816,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -2880,7 +2880,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -2938,7 +2938,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -2996,7 +2996,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -3051,7 +3051,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -3109,7 +3109,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -3167,7 +3167,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -3225,7 +3225,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -3286,7 +3286,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -3341,7 +3341,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -3396,7 +3396,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -4051,7 +4051,7 @@ importers:
+         version: 7.0.0
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -4220,7 +4220,7 @@ importers:
+         version: 3.5.3
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.9.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.9.3)(yaml@2.4.5)
+ 
+   packages/experience:
+     devDependencies:
+@@ -4530,7 +4530,7 @@ importers:
+         version: 23.10.3(typescript@5.5.3)
+       tsup:
+         specifier: ^8.5.0
+-        version: 8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
++        version: 8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5)
+       typescript:
+         specifier: ^5.5.3
+         version: 5.5.3
+@@ -4748,6 +4748,10 @@ importers:
+       '@withtyped/server':
+         specifier: ^0.14.0
+         version: 0.14.0(zod@3.24.3)
++    optionalDependencies:
++      zod:
++        specifier: 3.24.3
++        version: 3.24.3
+     devDependencies:
+       '@silverhand/eslint-config':
+         specifier: 6.0.1
+@@ -4782,10 +4786,6 @@ importers:
+       vitest:
+         specifier: ^3.1.1
+         version: 3.1.1(@types/debug@4.1.12)(@types/node@22.14.1)(jiti@1.21.0)(jsdom@26.0.0)(lightningcss@1.25.1)(sass@1.77.8)(yaml@2.4.5)
+-    optionalDependencies:
+-      zod:
+-        specifier: 3.24.3
+-        version: 3.24.3
+ 
+   packages/toolkit/core-kit:
+     dependencies:
+@@ -4801,6 +4801,10 @@ importers:
+       color:
+         specifier: ^4.2.3
+         version: 4.2.3
++    optionalDependencies:
++      zod:
++        specifier: 3.24.3
++        version: 3.24.3
+     devDependencies:
+       '@silverhand/eslint-config':
+         specifier: 6.0.1
+@@ -4847,12 +4851,12 @@ importers:
+       vitest:
+         specifier: ^3.1.1
+         version: 3.1.1(@types/debug@4.1.12)(@types/node@22.14.1)(jiti@1.21.0)(jsdom@26.0.0)(lightningcss@1.25.1)(sass@1.77.8)(yaml@2.4.5)
++
++  packages/toolkit/language-kit:
+     optionalDependencies:
+       zod:
+         specifier: 3.24.3
+         version: 3.24.3
+-
+-  packages/toolkit/language-kit:
+     devDependencies:
+       '@silverhand/eslint-config':
+         specifier: 6.0.1
+@@ -4881,10 +4885,6 @@ importers:
+       vitest:
+         specifier: ^3.1.1
+         version: 3.1.1(@types/debug@4.1.12)(@types/node@22.14.1)(jiti@1.21.0)(jsdom@26.0.0)(lightningcss@1.25.1)(sass@1.77.8)(yaml@2.4.5)
+-    optionalDependencies:
+-      zod:
+-        specifier: 3.24.3
+-        version: 3.24.3
+ 
+   packages/translate:
+     dependencies:
+@@ -22084,7 +22084,7 @@ snapshots:
+       debug: 4.4.1(supports-color@5.5.0)
+       enhanced-resolve: 5.16.0
+       eslint: 8.57.0
+-      eslint-module-utils: 2.8.1(@typescript-eslint/parser@7.7.0(eslint@8.57.0)(typescript@5.5.3))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.6.1)(eslint@8.57.0)
++      eslint-module-utils: 2.8.1(@typescript-eslint/parser@7.7.0(eslint@8.57.0)(typescript@5.5.3))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.6.1(@typescript-eslint/parser@7.7.0(eslint@8.57.0)(typescript@5.5.3))(eslint-plugin-import@2.29.1)(eslint@8.57.0))(eslint@8.57.0)
+       eslint-plugin-import: 2.29.1(@typescript-eslint/parser@7.7.0(eslint@8.57.0)(typescript@5.5.3))(eslint-import-resolver-typescript@3.6.1)(eslint@8.57.0)
+       fast-glob: 3.3.2
+       get-tsconfig: 4.7.3
+@@ -22101,7 +22101,7 @@ snapshots:
+       debug: 4.4.1(supports-color@5.5.0)
+       enhanced-resolve: 5.16.0
+       eslint: 8.57.0
+-      eslint-module-utils: 2.8.1(@typescript-eslint/parser@7.7.0(eslint@8.57.0)(typescript@5.9.3))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.6.1)(eslint@8.57.0)
++      eslint-module-utils: 2.8.1(@typescript-eslint/parser@7.7.0(eslint@8.57.0)(typescript@5.9.3))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.6.1(@typescript-eslint/parser@7.7.0(eslint@8.57.0)(typescript@5.9.3))(eslint-plugin-import@2.29.1)(eslint@8.57.0))(eslint@8.57.0)
+       eslint-plugin-import: 2.29.1(@typescript-eslint/parser@7.7.0(eslint@8.57.0)(typescript@5.9.3))(eslint-import-resolver-typescript@3.6.1)(eslint@8.57.0)
+       fast-glob: 3.3.2
+       get-tsconfig: 4.7.3
+@@ -22113,7 +22113,7 @@ snapshots:
+       - eslint-import-resolver-webpack
+       - supports-color
+ 
+-  eslint-module-utils@2.8.1(@typescript-eslint/parser@7.7.0(eslint@8.57.0)(typescript@5.5.3))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.6.1)(eslint@8.57.0):
++  eslint-module-utils@2.8.1(@typescript-eslint/parser@7.7.0(eslint@8.57.0)(typescript@5.5.3))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.6.1(@typescript-eslint/parser@7.7.0(eslint@8.57.0)(typescript@5.5.3))(eslint-plugin-import@2.29.1)(eslint@8.57.0))(eslint@8.57.0):
+     dependencies:
+       debug: 3.2.7
+     optionalDependencies:
+@@ -22124,7 +22124,7 @@ snapshots:
+     transitivePeerDependencies:
+       - supports-color
+ 
+-  eslint-module-utils@2.8.1(@typescript-eslint/parser@7.7.0(eslint@8.57.0)(typescript@5.9.3))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.6.1)(eslint@8.57.0):
++  eslint-module-utils@2.8.1(@typescript-eslint/parser@7.7.0(eslint@8.57.0)(typescript@5.9.3))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.6.1(@typescript-eslint/parser@7.7.0(eslint@8.57.0)(typescript@5.9.3))(eslint-plugin-import@2.29.1)(eslint@8.57.0))(eslint@8.57.0):
+     dependencies:
+       debug: 3.2.7
+     optionalDependencies:
+@@ -22163,7 +22163,7 @@ snapshots:
+       doctrine: 2.1.0
+       eslint: 8.57.0
+       eslint-import-resolver-node: 0.3.9
+-      eslint-module-utils: 2.8.1(@typescript-eslint/parser@7.7.0(eslint@8.57.0)(typescript@5.5.3))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.6.1)(eslint@8.57.0)
++      eslint-module-utils: 2.8.1(@typescript-eslint/parser@7.7.0(eslint@8.57.0)(typescript@5.5.3))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.6.1(@typescript-eslint/parser@7.7.0(eslint@8.57.0)(typescript@5.5.3))(eslint-plugin-import@2.29.1)(eslint@8.57.0))(eslint@8.57.0)
+       hasown: 2.0.2
+       is-core-module: 2.13.1
+       is-glob: 4.0.3
+@@ -22190,7 +22190,7 @@ snapshots:
+       doctrine: 2.1.0
+       eslint: 8.57.0
+       eslint-import-resolver-node: 0.3.9
+-      eslint-module-utils: 2.8.1(@typescript-eslint/parser@7.7.0(eslint@8.57.0)(typescript@5.9.3))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.6.1)(eslint@8.57.0)
++      eslint-module-utils: 2.8.1(@typescript-eslint/parser@7.7.0(eslint@8.57.0)(typescript@5.9.3))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.6.1(@typescript-eslint/parser@7.7.0(eslint@8.57.0)(typescript@5.9.3))(eslint-plugin-import@2.29.1)(eslint@8.57.0))(eslint@8.57.0)
+       hasown: 2.0.2
+       is-core-module: 2.13.1
+       is-glob: 4.0.3
+@@ -27907,7 +27907,7 @@ snapshots:
+ 
+   tsscmp@1.0.6: {}
+ 
+-  tsup@8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5):
++  tsup@8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.5.3)(yaml@2.4.5):
+     dependencies:
+       bundle-require: 5.1.0(esbuild@0.25.3)
+       cac: 6.7.14
+@@ -27936,7 +27936,7 @@ snapshots:
+       - tsx
+       - yaml
+ 
+-  tsup@8.5.0(patch_hash=248e52ddb3640c6c06693a689978c94074cecf10117a193f0c83e9c788f468fd)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.9.3)(yaml@2.4.5):
++  tsup@8.5.0(patch_hash=ejza5vcogi2dpo27l77wrlqt7y)(@swc/core@1.3.52(@swc/helpers@0.5.1))(jiti@1.21.0)(postcss@8.5.3)(typescript@5.9.3)(yaml@2.4.5):
+     dependencies:
+       bundle-require: 5.1.0(esbuild@0.25.3)
+       cac: 6.7.14
+-- 
+2.54.0
+

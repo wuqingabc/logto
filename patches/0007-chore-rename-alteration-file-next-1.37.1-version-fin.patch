@@ -1,0 +1,21 @@
+From 16e0f0981e8c704628d36f7d0875fb035d848e00 Mon Sep 17 00:00:00 2001
+From: root <root@openclaw-wuqing.winamz.com>
+Date: Sun, 29 Mar 2026 13:26:35 +0000
+Subject: [PATCH 7/9] =?UTF-8?q?chore:=20rename=20alteration=20file=20next?=
+ =?UTF-8?q?=20=E2=86=92=201.37.1=20(version=20finalized)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ ...1772615848-add-oidc-model-instances-grant-id-partial-index.ts} | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)
+ rename packages/schemas/alterations/{next-1772615848-add-oidc-model-instances-grant-id-partial-index.ts => 1.37.1-1772615848-add-oidc-model-instances-grant-id-partial-index.ts} (100%)
+
+diff --git a/packages/schemas/alterations/next-1772615848-add-oidc-model-instances-grant-id-partial-index.ts b/packages/schemas/alterations/1.37.1-1772615848-add-oidc-model-instances-grant-id-partial-index.ts
+similarity index 100%
+rename from packages/schemas/alterations/next-1772615848-add-oidc-model-instances-grant-id-partial-index.ts
+rename to packages/schemas/alterations/1.37.1-1772615848-add-oidc-model-instances-grant-id-partial-index.ts
+-- 
+2.54.0
+

@@ -1,0 +1,25 @@
+From 866a119f70920b1b1cebf900dce768251d9bd5e2 Mon Sep 17 00:00:00 2001
+From: root <root@openclaw-wuqing.winamz.com>
+Date: Mon, 13 Apr 2026 07:38:49 +0000
+Subject: [PATCH 9/9] =?UTF-8?q?chore:=20=E5=BF=BD=E7=95=A5=20build/=20Dock?=
+ =?UTF-8?q?er=20=E4=BA=A7=E7=89=A9?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ .gitignore | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/.gitignore b/.gitignore
+index 675e82afe..bf8f453c1 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -44,3 +44,4 @@ dump.rdb
+ 
+ # Temporarily ignore SAML OpenAPI spec file (will be needed later)
+ packages/core/src/saml-applications/routes/index.openapi.json
++build/
+-- 
+2.54.0
+

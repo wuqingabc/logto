@@ -1,0 +1,35 @@
+version: '3.9'
+
+services:
+  logto:
+    # 自构建镜像（patch stack 模式，详见 ADR-013）
+    # 构建：bash scripts/build-image.sh
+    image: ${LOGTO_IMAGE:-winamz/logto:69d3eb6bd-winamz.0}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "3001:3001"
+      - "3002:3002"
+    environment:
+      - TRUST_PROXY_HEADER=1
+      - DB_URL=postgres://postgres:p0stgr3s@postgres:5432/logto
+      - ENDPOINT
+      - ADMIN_ENDPOINT
+
+  postgres:
+    image: postgres:17-alpine
+    user: postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: p0stgr3s
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - logto_pg_data:/var/lib/postgresql/data
+
+volumes:
+  logto_pg_data:

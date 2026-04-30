@@ -1,0 +1,8 @@
+# 不入库
+.playwright-mcp/
+.playwright/
+node_modules/
+*.local
+
+# macOS
+.DS_Store

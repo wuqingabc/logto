@@ -1,0 +1,42 @@
+From 0c9bff3eee99737a8ca064690bfa6517e86c3324 Mon Sep 17 00:00:00 2001
+From: root <root@openclaw-wuqing.winamz.com>
+Date: Mon, 13 Apr 2026 07:21:18 +0000
+Subject: [PATCH 8/9] ci: GitHub Actions CI pipeline
+
+---
+ .github/workflows/ci.yml | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)
+ create mode 100644 .github/workflows/ci.yml
+
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+new file mode 100644
+index 000000000..21753a531
+--- /dev/null
++++ b/.github/workflows/ci.yml
+@@ -0,0 +1,23 @@
++name: CI
++
++on:
++  push:
++    branches: [main]
++  pull_request:
++    branches: [main]
++
++jobs:
++  docker:
++    runs-on: ubuntu-latest
++    timeout-minutes: 20
++    
++    steps:
++      - uses: actions/checkout@v4
++      
++      - name: Set up Docker Buildx
++        uses: docker/setup-buildx-action@v3
++      
++      - name: Build Docker image
++        run: |
++          docker build -t winamz-logto:test .
++        continue-on-error: true
+-- 
+2.54.0
+

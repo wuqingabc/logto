@@ -1,0 +1,36 @@
+# WinAMZ logto 镜像（Patch Stack 模式，详见 ADR-013）
+#
+# 构建上下文：logto/ submodule（patch 已在外部 apply 后）
+# 调用方式：bash scripts/build-image.sh（不要直接 docker build）
+
+ARG UPSTREAM_VERSION=v1.37.1
+FROM node:22-alpine AS builder
+
+# 安装构建依赖
+RUN apk add --no-cache python3 make g++ git
+
+WORKDIR /app
+COPY --link . /app/
+
+# 安装 + 构建（patch 已 apply 到工作树）
+RUN corepack enable && pnpm install --frozen-lockfile=false
+RUN pnpm prepack && pnpm -r build
+
+# Runtime stage
+FROM node:22-alpine AS runtime
+RUN apk add --no-cache tini
+WORKDIR /app
+
+COPY --from=builder /app /app
+
+ARG WINAMZ_BUILD_N=0
+ENV WINAMZ_BUILD_N=${WINAMZ_BUILD_N}
+ENV WINAMZ_UPSTREAM_VERSION=${UPSTREAM_VERSION}
+
+LABEL org.winamz.upstream="logto"
+LABEL org.winamz.upstream-version="${UPSTREAM_VERSION}"
+LABEL org.winamz.build-n="${WINAMZ_BUILD_N}"
+
+EXPOSE 3001 3002
+ENTRYPOINT ["tini", "--"]
+CMD ["sh", "-c", "cd packages/core && NODE_ENV=production node ."]
