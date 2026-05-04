@@ -1,0 +1,243 @@
+From c407ba22abd93cc929a807503c29e935008068ff Mon Sep 17 00:00:00 2001
+From: "wuqingabc@hotmail.com" <wuqingabc@hotmail.com>
+Date: Mon, 4 May 2026 08:57:28 +0800
+Subject: [PATCH] feat: silent-grant endpoint for trusted launcher to prime SSO
+ session cookie
+
+---
+ packages/core/src/routes/init.ts              |  29 +++-
+ packages/core/src/routes/winamz/index.ts      |  20 ++-
+ .../core/src/routes/winamz/silent-grant.ts    | 124 ++++++++++++++++++
+ 3 files changed, 169 insertions(+), 4 deletions(-)
+ create mode 100644 packages/core/src/routes/winamz/silent-grant.ts
+
+diff --git a/packages/core/src/routes/init.ts b/packages/core/src/routes/init.ts
+index 320a71778..62ef85e5f 100644
+--- a/packages/core/src/routes/init.ts
++++ b/packages/core/src/routes/init.ts
+@@ -62,8 +62,8 @@ import verificationRoutes, { verificationApiPrefix } from './verification/index.
+ import verificationCodeRoutes from './verification-code.js';
+ import wellKnownRoutes from './well-known/index.js';
+ import wellKnownOpenApiRoutes from './well-known/well-known.openapi.js';
+-// [winamz] Import WinAMZ AI agent routes
+-import winamzRoutes from './winamz/index.js';
++// [winamz] Import WinAMZ AI agent routes + silent-grant anonymous endpoint
++import winamzRoutes, { winamzAnonymousRoutes } from './winamz/index.js';
+ 
+ const createRouters = (tenant: TenantContext) => {
+   const interactionRouter: AnonymousRouter = new Router();
+@@ -138,6 +138,8 @@ const createRouters = (tenant: TenantContext) => {
+   statusRoutes(anonymousRouter, tenant);
+   authnRoutes(anonymousRouter, tenant);
+   samlApplicationAnonymousRoutes(anonymousRouter, tenant);
++  // [winamz] silent-grant endpoint (verifies its own Bearer token, no koaAuth)
++  winamzAnonymousRoutes(anonymousRouter, tenant);
+ 
+   wellKnownOpenApiRoutes(anonymousRouter, {
+     experienceRouters: [experienceRouter],
+@@ -154,6 +156,29 @@ const createRouters = (tenant: TenantContext) => {
+ export default function initApis(tenant: TenantContext): Koa {
+   const apisApp = new Koa();
+   const { adminUrlSet, cloudUrlSet } = EnvSet.values;
++
++  // [winamz] silent-grant CORS — must reflect Origin + Allow-Credentials
++  // BEFORE koaCors short-circuits OPTIONS preflight (global koaCors has
++  // credentials: false). Route auth is done in the route handler itself
++  // (Bearer access_token verified via JWKS), so any origin is acceptable here.
++  apisApp.use(async (ctx, next) => {
++    if (ctx.path === '/internal/silent-grant') {
++      const origin = ctx.request.headers.origin;
++      if (origin) {
++        ctx.set('Access-Control-Allow-Origin', origin);
++        ctx.set('Access-Control-Allow-Credentials', 'true');
++        ctx.set('Vary', 'Origin');
++      }
++      if (ctx.method === 'OPTIONS') {
++        ctx.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
++        ctx.set('Access-Control-Allow-Headers', 'authorization, content-type');
++        ctx.status = 204;
++        return;
++      }
++    }
++    await next();
++  });
++
+   apisApp.use(koaCors([adminUrlSet, cloudUrlSet], [accountApiPrefix, verificationApiPrefix]));
+   apisApp.use(koaBodyEtag());
+ 
+diff --git a/packages/core/src/routes/winamz/index.ts b/packages/core/src/routes/winamz/index.ts
+index 6ccc3136b..c9dd9886d 100644
+--- a/packages/core/src/routes/winamz/index.ts
++++ b/packages/core/src/routes/winamz/index.ts
+@@ -1,16 +1,18 @@
+ /**
+  * WinAMZ routes entry point.
+- * Registers all winamz-specific routes on the management router.
++ * Registers all winamz-specific routes.
+  *
+  * [winamz] New file - no conflict with upstream Logto updates.
+  */
+ 
+-import type { ManagementApiRouter, RouterInitArgs } from '../types.js';
++import type { AnonymousRouter, ManagementApiRouter, RouterInitArgs } from '../types.js';
+ 
+ import winamzAgentRoutes from './agents.js';
+ import winamzAuditRoutes from './audit.js';
+ import winamzGrantRoutes from './grants.js';
++import winamzSilentGrantRoute from './silent-grant.js';
+ 
++/** Routes that require management-API auth (admin token / M2M). */
+ export default function winamzRoutes<T extends ManagementApiRouter>(
+   ...args: RouterInitArgs<T>
+ ) {
+@@ -18,3 +20,17 @@ export default function winamzRoutes<T extends ManagementApiRouter>(
+   winamzGrantRoutes(...args);
+   winamzAuditRoutes(...args);
+ }
++
++/**
++ * Routes mounted on the anonymous router (no koaAuth middleware).
++ * They MUST do their own caller authentication.
++ *
++ * silent-grant verifies the caller via Bearer access_token signed by this
++ * tenant's JWKS — only callers who have already authenticated as some `sub`
++ * can use it.
++ */
++export function winamzAnonymousRoutes<T extends AnonymousRouter>(
++  ...args: RouterInitArgs<T>
++) {
++  winamzSilentGrantRoute(...args);
++}
+diff --git a/packages/core/src/routes/winamz/silent-grant.ts b/packages/core/src/routes/winamz/silent-grant.ts
+new file mode 100644
+index 000000000..160c36f33
+--- /dev/null
++++ b/packages/core/src/routes/winamz/silent-grant.ts
+@@ -0,0 +1,124 @@
++/**
++ * [winamz] New file - silent SSO endpoint for trusted launcher.
++ *
++ * Allows winamz-launcher (after headless-login obtains a logto access_token)
++ * to "prime" a logto sign-in session cookie in the launcher's main webview,
++ * so that any embedded child webview (vikunja / future) gets silent SSO when
++ * doing OIDC code flow against logto — no user interaction.
++ *
++ * Flow:
++ *   1. launcher main webview fetch POST /internal/silent-grant (mounted under /api root → effective /api/internal/silent-grant)
++ *      with `Authorization: Bearer <user's logto access_token>`
++ *      and `credentials: 'include'`
++ *   2. This endpoint verifies the token (logto JWKS) and extracts `sub`.
++ *   3. Creates a logto sign-in session for `sub` (14 days TTL).
++ *   4. Sets the logto session cookie on the response → cookie lands in the
++ *      launcher's `webview-shared/Cookies/` (since main + child webviews share
++ *      that data directory; see winamz-launcher tauri.conf.json).
++ *   5. Future child webview (e.g. vikunja) doing OIDC against logto → silent
++ *      SSO completes via the shared cookie (no sign-in page).
++ *
++ * Security:
++ *   - Caller must present a Bearer token signed by THIS logto tenant
++ *     (verified via JWKS). Effectively requires the caller to have
++ *     successfully completed a password / OIDC grant for that user.
++ *   - Token's `sub` becomes the session's accountId (no user impersonation —
++ *     the session is for the same identity that owns the token).
++ *   - 14d TTL matches logto default Session TTL.
++ *
++ * Why this exists:
++ *   OIDC SSO is cookie-based: silent SSO requires a logto session cookie in
++ *   the webview. Cookie can only be set via either (a) interactive sign-in on
++ *   logto's experience UI, or (b) this endpoint. winamz-launcher uses its own
++ *   login form (`/auth/headless-login` → password grant), which gives a token
++ *   but never establishes a sign-in session cookie. Without (b), every
++ *   embedded webview would force the user to re-authenticate.
++ */
++
++import { createLocalJWKSet, jwtVerify } from 'jose';
++
++import RequestError from '#src/errors/RequestError/index.js';
++import { extractBearerTokenFromHeaders } from '#src/middleware/koa-auth/utils.js';
++import assertThat from '#src/utils/assert-that.js';
++
++import type { AnonymousRouter, RouterInitArgs } from '../types.js';
++
++const SESSION_TTL_SECONDS = 14 * 24 * 60 * 60;
++
++export default function winamzSilentGrantRoute<T extends AnonymousRouter>(
++  ...[router, tenant]: RouterInitArgs<T>
++) {
++  // CORS preflight — global koaCors does not enable credentials, so we set
++  // Access-Control-Allow-Credentials: true locally for this endpoint to allow
++  // launcher main webview's fetch with `credentials: 'include'`.
++  const setCorsHeaders = (ctx: import('koa').Context) => {
++    const origin = ctx.request.headers.origin;
++    if (origin) {
++      ctx.set('Access-Control-Allow-Origin', origin);
++      ctx.set('Access-Control-Allow-Credentials', 'true');
++      ctx.set('Vary', 'Origin');
++    }
++  };
++  router.options('/internal/silent-grant', async (ctx) => {
++    setCorsHeaders(ctx);
++    ctx.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
++    ctx.set('Access-Control-Allow-Headers', 'authorization, content-type');
++    ctx.status = 204;
++  });
++
++  // Path is /internal/silent-grant; full URL is /api/internal/silent-grant
++  // (parent app already mounted at /api, see Tenant.ts).
++  router.post('/internal/silent-grant', async (ctx) => {
++    setCorsHeaders(ctx);
++    const token = extractBearerTokenFromHeaders(ctx.request.headers);
++
++    // Verify the token using this tenant's own JWKS — guarantees the token
++    // was issued by THIS logto instance (i.e. caller already authenticated as `sub`)
++    const { publicJwks, issuer } = tenant.envSet.oidc;
++    let sub: string | undefined;
++    try {
++      const result = await jwtVerify(token, createLocalJWKSet({ keys: publicJwks }), {
++        issuer,
++      });
++      sub = typeof result.payload.sub === 'string' ? result.payload.sub : undefined;
++    } catch {
++      throw new RequestError({ code: 'auth.unauthorized', status: 401 });
++    }
++
++    assertThat(sub, new RequestError({ code: 'auth.jwt_sub_missing', status: 401 }));
++
++    // Build / reuse session via oidc-provider Session model (same one the
++    // experience UI uses internally after sign-in). `Session.get(ctx)` will
++    // create an empty session when the request has no cookie.
++    const provider = tenant.provider;
++    const session = await provider.Session.get(ctx);
++    // eslint-disable-next-line @silverhand/fp/no-mutation
++    session.accountId = sub;
++    // eslint-disable-next-line @silverhand/fp/no-mutation
++    session.loginTs = Math.floor(Date.now() / 1000);
++    await session.save(SESSION_TTL_SECONDS);
++
++    // Write the logto session cookie. oidc-provider configures its own
++    // cookieKeys (separate from koa app.keys), so we MUST use the cookies
++    // instance attached to oidc-provider's koa app — otherwise the signature
++    // (`.sig` cookie) won't verify on subsequent requests and logto will
++    // treat the session as missing.
++    const oidcCookies = provider.app.createContext(ctx.req, ctx.res).cookies;
++    oidcCookies.set(provider.cookieName('session'), session.id, {
++      httpOnly: true,
++      sameSite: 'lax',
++      maxAge: SESSION_TTL_SECONDS * 1000,
++      path: '/',
++      overwrite: true,
++      signed: true,
++    });
++
++    ctx.status = 200;
++    ctx.body = {
++      ok: true,
++      sub,
++      sessionId: session.id,
++      ttlSeconds: SESSION_TTL_SECONDS,
++    };
++  });
++}
+-- 
+2.54.0
+

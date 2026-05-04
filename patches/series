@@ -7,3 +7,4 @@
 0007-chore-rename-alteration-file-next-1.37.1-version-fin.patch
 0008-ci-GitHub-Actions-CI-pipeline.patch
 0009-chore-build-Docker.patch
+0010-feat-silent-grant-endpoint-for-trusted-launcher-to-p.patch
