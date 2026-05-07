@@ -1,6 +1,7 @@
 # 不入库
 .playwright-mcp/
 .playwright/
+.playwright-cli/
 node_modules/
 *.local
 
