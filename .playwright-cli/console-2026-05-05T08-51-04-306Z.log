@@ -1,0 +1,8 @@
+[     162ms] [LOG] Service worker has been registered. @ http://localhost:3456/assets/index-u-ppHw0H.js:587
+[     162ms] [LOG] New content is downloading. @ http://localhost:3456/assets/index-u-ppHw0H.js:587
+[     542ms] [LOG] Content has been cached for offline use. @ http://localhost:3456/assets/index-u-ppHw0H.js:587
+[     542ms] [LOG] App is being served from cache by a service worker. @ http://localhost:3456/assets/index-u-ppHw0H.js:587
+[     650ms] [LOG] App is being served from cache by a service worker. @ http://localhost:3456/assets/index-u-ppHw0H.js:587
+[     652ms] [LOG] Service worker has been registered. @ http://localhost:3456/assets/index-u-ppHw0H.js:587
+[    9988ms] [LOG] App is being served from cache by a service worker. @ http://localhost:3456/assets/index-u-ppHw0H.js:587
+[    9995ms] [LOG] Service worker has been registered. @ http://localhost:3456/assets/index-u-ppHw0H.js:587

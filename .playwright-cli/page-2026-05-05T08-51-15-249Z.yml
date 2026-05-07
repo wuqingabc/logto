@@ -1,0 +1,151 @@
+- generic [ref=e2]:
+  - banner "main navigation" [ref=e3]:
+    - link "Overview" [ref=e4] [cursor=pointer]:
+      - /url: /
+      - img "Vikunja" [ref=e6]
+    - button "Hide the menu" [ref=e19] [cursor=pointer]
+    - generic [ref=e20]:
+      - button "Open the search/quick action bar" [ref=e21] [cursor=pointer]:
+        - img [ref=e22]
+      - button "Notifications" [ref=e25] [cursor=pointer]:
+        - generic [ref=e26]: Notifications
+        - img [ref=e27]
+      - menu [ref=e29]:
+        - button "系统管理员" [ref=e30] [cursor=pointer]:
+          - generic [ref=e31]: 系统管理员
+          - img [ref=e33]
+  - generic [ref=e36]:
+    - complementary [ref=e38]:
+      - navigation [ref=e39]:
+        - list [ref=e40]:
+          - listitem [ref=e41]:
+            - link "Overview" [ref=e42] [cursor=pointer]:
+              - /url: /
+              - img [ref=e44]
+              - text: Overview
+          - listitem [ref=e46]:
+            - link "Upcoming" [ref=e47] [cursor=pointer]:
+              - /url: /tasks/by/upcoming
+              - img [ref=e49]
+              - text: Upcoming
+          - listitem [ref=e51]:
+            - link "Projects" [ref=e52] [cursor=pointer]:
+              - /url: /projects
+              - img [ref=e54]
+              - text: Projects
+          - listitem [ref=e56]:
+            - link "Labels" [ref=e57] [cursor=pointer]:
+              - /url: /labels
+              - img [ref=e59]
+              - text: Labels
+          - listitem [ref=e61]:
+            - link "Teams" [ref=e62] [cursor=pointer]:
+              - /url: /teams
+              - img [ref=e64]
+              - text: Teams
+      - navigation [ref=e66]:
+        - list [ref=e67]:
+          - listitem [ref=e68]:
+            - generic [ref=e69]:
+              - link "Inbox" [ref=e70] [cursor=pointer]:
+                - /url: /projects/1
+                - img [ref=e73]
+                - generic [ref=e75]: Inbox
+              - button "Mark this project as favorite" [ref=e76] [cursor=pointer]:
+                - generic [ref=e77]: Mark this project as favorite
+                - img [ref=e78]
+              - menu [ref=e80]:
+                - button "Open project settings menu" [ref=e81] [cursor=pointer]:
+                  - generic [ref=e82]: Open project settings menu
+                  - img [ref=e83]
+            - list
+          - listitem [ref=e85]:
+            - generic [ref=e86]:
+              - link "Color 空调清库存" [ref=e87] [cursor=pointer]:
+                - /url: /projects/2
+                - generic [ref=e88]:
+                  - generic "Color" [ref=e89]
+                  - img [ref=e91]
+                - generic [ref=e93]: 空调清库存
+              - button "Mark this project as favorite" [ref=e94] [cursor=pointer]:
+                - generic [ref=e95]: Mark this project as favorite
+                - img [ref=e96]
+              - menu [ref=e98]:
+                - button "Open project settings menu" [ref=e99] [cursor=pointer]:
+                  - generic [ref=e100]: Open project settings menu
+                  - img [ref=e101]
+            - list
+      - link "Powered by Vikunja" [ref=e103] [cursor=pointer]:
+        - /url: https://vikunja.io/?utm_source=powered_by&utm_medium=navigation
+    - main [ref=e105]:
+      - generic [ref=e106]:
+        - heading "Hi 系统管理员!" [level=2] [ref=e107]
+        - generic [ref=e109]:
+          - paragraph [ref=e110]:
+            - generic [ref=e111]: Add a task…
+            - img [ref=e113]
+            - textbox "Add a task…" [active] [ref=e115]
+            - button "Use magic prefixes to define due dates, assignees and other task properties." [ref=e116] [cursor=pointer]:
+              - img [ref=e117]
+          - paragraph [ref=e119]:
+            - button "Add" [disabled]:
+              - generic:
+                - img
+              - generic: Add
+        - generic [ref=e120]:
+          - heading "Current Tasks" [level=3] [ref=e121]
+          - generic [ref=e125]:
+            - generic [ref=e127] [cursor=pointer]:
+              - generic [ref=e130]:
+                - checkbox "Checkbox" [ref=e131]
+                - img "Checkbox" [ref=e132]
+              - generic [ref=e136]:
+                - generic [ref=e137]:
+                  - link "空调清库存" [ref=e138]:
+                    - /url: /projects/2
+                  - link "finishied in" [ref=e140]:
+                    - /url: /tasks/4
+                - button "– Due in a day" [ref=e141]:
+                  - time [ref=e142]: – Due in a day
+              - button "Add to Favorites" [ref=e143]:
+                - generic [ref=e144]: Add to Favorites
+                - img [ref=e145]
+            - generic [ref=e148] [cursor=pointer]:
+              - generic [ref=e151]:
+                - checkbox "Checkbox" [ref=e152]
+                - img "Checkbox" [ref=e153]
+              - generic [ref=e158]:
+                - link "空调清库存" [ref=e159]:
+                  - /url: /projects/2
+                - link "明天完成" [ref=e161]:
+                  - /url: /tasks/3
+              - button "Add to Favorites" [ref=e162]:
+                - generic [ref=e163]: Add to Favorites
+                - img [ref=e164]
+            - generic [ref=e167] [cursor=pointer]:
+              - generic [ref=e170]:
+                - checkbox "Checkbox" [ref=e171]
+                - img "Checkbox" [ref=e172]
+              - generic [ref=e177]:
+                - link "空调清库存" [ref=e178]:
+                  - /url: /projects/2
+                - link "asdfasdfa" [ref=e180]:
+                  - /url: /tasks/2
+              - button "Add to Favorites" [ref=e181]:
+                - generic [ref=e182]: Add to Favorites
+                - img [ref=e183]
+            - generic [ref=e186] [cursor=pointer]:
+              - generic [ref=e189]:
+                - checkbox "Checkbox" [ref=e190]
+                - img "Checkbox" [ref=e191]
+              - generic [ref=e196]:
+                - link "空调清库存" [ref=e197]:
+                  - /url: /projects/2
+                - link "asdfasdf" [ref=e199]:
+                  - /url: /tasks/1
+              - button "Add to Favorites" [ref=e200]:
+                - generic [ref=e201]: Add to Favorites
+                - img [ref=e202]
+      - button "Keyboard Shortcuts" [ref=e204] [cursor=pointer]:
+        - generic [ref=e205]: Keyboard Shortcuts
+        - img [ref=e206]

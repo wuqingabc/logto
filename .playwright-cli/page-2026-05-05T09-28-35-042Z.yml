@@ -1,0 +1,917 @@
+- generic [ref=e1]:
+  - generic [ref=e63]:
+    - log
+    - log
+  - generic [ref=e106]:
+    - generic [ref=e107]:
+      - button "工作台" [ref=e108] [cursor=pointer]:
+        - img [ref=e109]
+        - generic [ref=e112]: 工作台
+      - button "项目管理" [ref=e113] [cursor=pointer]:
+        - img [ref=e114]
+        - generic [ref=e116]: 项目管理
+    - generic [ref=e117]:
+      - generic [ref=e118]:
+        - generic [ref=e119]: 快
+        - generic [ref=e120]: 快马奔腾科技有限公司 · admin
+      - button "设置（待开发）" [ref=e121] [cursor=pointer]:
+        - img [ref=e122]
+      - button "退出登录" [ref=e125] [cursor=pointer]:
+        - img [ref=e126]
+    - generic [ref=e129]:
+      - generic [ref=e135]:
+        - generic [ref=e136]:
+          - generic [ref=e137]: 17:28
+          - generic [ref=e138]: 2026.05.05 周二
+          - generic [ref=e139]:
+            - text: 下午好
+            - generic [ref=e140]: ", 快马奔腾科技有限公司 · admin"
+        - generic [ref=e141]:
+          - generic [ref=e142]:
+            - generic [ref=e143]:
+              - generic [ref=e144]: 番茄钟
+              - generic [ref=e145]: 今日 0 个 · 0 分钟
+            - generic [ref=e146]:
+              - generic [ref=e147]: 25:00
+              - generic [ref=e148]: 准备开始 25 分钟专注
+            - button "开始" [ref=e150] [cursor=pointer]:
+              - img [ref=e151]
+              - text: 开始
+          - generic [ref=e153]:
+            - generic [ref=e154]:
+              - generic [ref=e155]: 四象限任务
+              - generic [ref=e156]: 0 项待办
+            - generic [ref=e157]:
+              - generic [ref=e158]:
+                - generic [ref=e159]:
+                  - generic [ref=e160]:
+                    - generic [ref=e161]: 重要紧急
+                    - generic [ref=e162]: 立即做
+                  - button "添加任务" [ref=e163] [cursor=pointer]:
+                    - img [ref=e164]
+                - list [ref=e165]
+              - generic [ref=e166]:
+                - generic [ref=e167]:
+                  - generic [ref=e168]:
+                    - generic [ref=e169]: 重要不紧急
+                    - generic [ref=e170]: 计划做
+                  - button "添加任务" [ref=e171] [cursor=pointer]:
+                    - img [ref=e172]
+                - list [ref=e173]
+              - generic [ref=e174]:
+                - generic [ref=e175]:
+                  - generic [ref=e176]:
+                    - generic [ref=e177]: 紧急不重要
+                    - generic [ref=e178]: 委托做
+                  - button "添加任务" [ref=e179] [cursor=pointer]:
+                    - img [ref=e180]
+                - list [ref=e181]
+              - generic [ref=e182]:
+                - generic [ref=e183]:
+                  - generic [ref=e184]:
+                    - generic [ref=e185]: 不重要不紧急
+                    - generic [ref=e186]: 少做或不做
+                  - button "添加任务" [ref=e187] [cursor=pointer]:
+                    - img [ref=e188]
+                - list [ref=e189]
+        - generic [ref=e191]:
+          - generic [ref=e192]:
+            - generic [ref=e193]:
+              - img [ref=e194]
+              - generic [ref=e198]: OKR · 2026-Q2
+            - generic [ref=e199]:
+              - generic [ref=e200]: 0 个目标 · 总体 0%
+              - textbox "2026-Q2" [ref=e201]
+              - button "加目标" [ref=e202] [cursor=pointer]:
+                - img [ref=e203]
+                - text: 加目标
+          - generic [ref=e205]: 还没有目标。点右上"加目标"开始本季度规划。
+      - generic [ref=e210]:
+        - complementary [ref=e211]:
+          - generic [ref=e212]:
+            - button "Overview" [ref=e213] [cursor=pointer]:
+              - img [ref=e214]
+              - generic [ref=e217]: Overview
+            - button "Upcoming" [ref=e218] [cursor=pointer]:
+              - img [ref=e219]
+              - generic [ref=e221]: Upcoming
+            - button "Inbox" [ref=e222] [cursor=pointer]:
+              - img [ref=e223]
+              - generic [ref=e226]: Inbox
+            - generic [ref=e227]:
+              - generic [ref=e228]: Projects
+              - button "新建项目" [ref=e229] [cursor=pointer]:
+                - img [ref=e230]
+            - generic [ref=e232] [cursor=pointer]:
+              - generic [ref=e233]: Inbox
+              - button "创建子项目" [ref=e234]:
+                - img [ref=e235]
+              - button "项目设置" [ref=e236]:
+                - img [ref=e237]
+            - generic [ref=e239] [cursor=pointer]:
+              - generic [ref=e240]: 空调清库存
+              - button "创建子项目" [ref=e241]:
+                - img [ref=e242]
+              - button "项目设置" [ref=e243]:
+                - img [ref=e244]
+            - button "Labels" [ref=e246] [cursor=pointer]:
+              - img [ref=e247]
+              - generic [ref=e250]: Labels
+            - button "Teams" [ref=e251] [cursor=pointer]:
+              - img [ref=e252]
+              - generic [ref=e257]: Teams
+            - button "Filters" [ref=e258] [cursor=pointer]:
+              - img [ref=e259]
+              - generic [ref=e261]: Filters
+            - button "Settings" [ref=e262] [cursor=pointer]:
+              - img [ref=e263]
+              - generic [ref=e266]: Settings
+        - main [ref=e267]:
+          - generic [ref=e268]:
+            - button "收起侧边栏" [ref=e269] [cursor=pointer]:
+              - img [ref=e270]
+            - generic [ref=e273]:
+              - heading "空调清库存" [level=1] [ref=e274]
+              - generic [ref=e275]:
+                - generic [ref=e276]:
+                  - button "List" [ref=e277] [cursor=pointer]:
+                    - img [ref=e278]
+                    - text: List
+                  - button "Kanban" [active] [ref=e281] [cursor=pointer]:
+                    - img [ref=e282]
+                    - text: Kanban
+                  - button "Calendar" [ref=e283] [cursor=pointer]:
+                    - img [ref=e284]
+                    - text: Calendar
+                  - button "Table" [ref=e286] [cursor=pointer]:
+                    - img [ref=e287]
+                    - text: Table
+                  - button "Gantt" [ref=e289] [cursor=pointer]:
+                    - img [ref=e290]
+                    - text: Gantt
+                - button "编辑当前视图" [ref=e292] [cursor=pointer]:
+                  - img [ref=e293]
+                - button "创建新视图" [ref=e296] [cursor=pointer]:
+                  - img [ref=e297]
+                - button "通知" [ref=e299] [cursor=pointer]:
+                  - img [ref=e300]
+                - button "系" [ref=e304] [cursor=pointer]
+          - generic [ref=e305]:
+            - generic [ref=e1754]:
+              - generic [ref=e1755]:
+                - button "过滤" [ref=e1757] [cursor=pointer]:
+                  - img [ref=e1758]
+                  - text: 过滤
+                - button "分组配置" [ref=e1760] [cursor=pointer]:
+                  - img [ref=e1761]
+                  - text: 分组配置
+              - generic [ref=e1765]:
+                - generic [ref=e1766]:
+                  - generic [ref=e1767]:
+                    - button "拖拽调整分组顺序" [ref=e1768]:
+                      - img [ref=e1769]
+                    - generic [ref=e1776]:
+                      - heading "Doing" [level=3] [ref=e1777]
+                      - generic "2 / 2 · 已达上限" [ref=e1778]: 2 / 2
+                    - generic [ref=e1779]:
+                      - button "已达 WIP limit,无法新增" [disabled] [ref=e1780]:
+                        - img [ref=e1781]
+                      - button "更多操作" [ref=e1783] [cursor=pointer]:
+                        - img [ref=e1784]
+                  - generic [ref=e1788]:
+                    - button "#7 0 Jan 1, 1 Kanban 测试任务 2" [ref=e1789] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e1790]:
+                        - generic [ref=e1791]:
+                          - generic [ref=e1792]:
+                            - generic [ref=e1793]:
+                              - img [ref=e1795]
+                              - generic [ref=e1797]: "#7"
+                              - text: "0"
+                            - generic [ref=e1798]:
+                              - img [ref=e1799]
+                              - text: Jan 1, 1
+                          - generic [ref=e1801]: Kanban 测试任务 2
+                    - button "#6 0 Jan 1, 1 Kanban 测试任务 1" [ref=e1803] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e1804]:
+                        - generic [ref=e1805]:
+                          - generic [ref=e1806]:
+                            - generic [ref=e1807]:
+                              - img [ref=e1809]
+                              - generic [ref=e1811]: "#6"
+                              - text: "0"
+                            - generic [ref=e1812]:
+                              - img [ref=e1813]
+                              - text: Jan 1, 1
+                          - generic [ref=e1815]: Kanban 测试任务 1
+                - generic [ref=e1817]:
+                  - generic [ref=e1818]:
+                    - button "拖拽调整分组顺序" [ref=e1819]:
+                      - img [ref=e1820]
+                    - generic [ref=e1827]:
+                      - heading "To-Do" [level=3] [ref=e1828]
+                      - text: "0"
+                      - generic "默认分组" [ref=e1829]: 默认
+                    - generic [ref=e1830]:
+                      - button "新建任务" [ref=e1831] [cursor=pointer]:
+                        - img [ref=e1832]
+                      - button "更多操作" [ref=e1834] [cursor=pointer]:
+                        - img [ref=e1835]
+                  - generic [ref=e1839]:
+                    - button "#62 0 Jan 1, 1 Pagination Task 50 Low" [ref=e1840] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e1841]:
+                        - generic [ref=e1842]:
+                          - generic [ref=e1843]:
+                            - generic [ref=e1844]:
+                              - img [ref=e1846]
+                              - generic [ref=e1848]: "#62"
+                              - text: "0"
+                            - generic [ref=e1849]:
+                              - img [ref=e1850]
+                              - text: Jan 1, 1
+                          - generic [ref=e1852]: Pagination Task 50
+                          - 'generic "Priority: Low" [ref=e1854]': Low
+                    - button "#61 0 Jan 1, 1 Pagination Task 49 Low" [ref=e1855] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e1856]:
+                        - generic [ref=e1857]:
+                          - generic [ref=e1858]:
+                            - generic [ref=e1859]:
+                              - img [ref=e1861]
+                              - generic [ref=e1863]: "#61"
+                              - text: "0"
+                            - generic [ref=e1864]:
+                              - img [ref=e1865]
+                              - text: Jan 1, 1
+                          - generic [ref=e1867]: Pagination Task 49
+                          - 'generic "Priority: Low" [ref=e1869]': Low
+                    - button "#60 0 Jan 1, 1 Pagination Task 48 Low" [ref=e1870] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e1871]:
+                        - generic [ref=e1872]:
+                          - generic [ref=e1873]:
+                            - generic [ref=e1874]:
+                              - img [ref=e1876]
+                              - generic [ref=e1878]: "#60"
+                              - text: "0"
+                            - generic [ref=e1879]:
+                              - img [ref=e1880]
+                              - text: Jan 1, 1
+                          - generic [ref=e1882]: Pagination Task 48
+                          - 'generic "Priority: Low" [ref=e1884]': Low
+                    - button "#59 0 Jan 1, 1 Pagination Task 47 Low" [ref=e1885] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e1886]:
+                        - generic [ref=e1887]:
+                          - generic [ref=e1888]:
+                            - generic [ref=e1889]:
+                              - img [ref=e1891]
+                              - generic [ref=e1893]: "#59"
+                              - text: "0"
+                            - generic [ref=e1894]:
+                              - img [ref=e1895]
+                              - text: Jan 1, 1
+                          - generic [ref=e1897]: Pagination Task 47
+                          - 'generic "Priority: Low" [ref=e1899]': Low
+                    - button "#58 0 Jan 1, 1 Pagination Task 46 Low" [ref=e1900] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e1901]:
+                        - generic [ref=e1902]:
+                          - generic [ref=e1903]:
+                            - generic [ref=e1904]:
+                              - img [ref=e1906]
+                              - generic [ref=e1908]: "#58"
+                              - text: "0"
+                            - generic [ref=e1909]:
+                              - img [ref=e1910]
+                              - text: Jan 1, 1
+                          - generic [ref=e1912]: Pagination Task 46
+                          - 'generic "Priority: Low" [ref=e1914]': Low
+                    - button "#57 0 Jan 1, 1 Pagination Task 45 Low" [ref=e1915] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e1916]:
+                        - generic [ref=e1917]:
+                          - generic [ref=e1918]:
+                            - generic [ref=e1919]:
+                              - img [ref=e1921]
+                              - generic [ref=e1923]: "#57"
+                              - text: "0"
+                            - generic [ref=e1924]:
+                              - img [ref=e1925]
+                              - text: Jan 1, 1
+                          - generic [ref=e1927]: Pagination Task 45
+                          - 'generic "Priority: Low" [ref=e1929]': Low
+                    - button "#56 0 Jan 1, 1 Pagination Task 44 Low" [ref=e1930] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e1931]:
+                        - generic [ref=e1932]:
+                          - generic [ref=e1933]:
+                            - generic [ref=e1934]:
+                              - img [ref=e1936]
+                              - generic [ref=e1938]: "#56"
+                              - text: "0"
+                            - generic [ref=e1939]:
+                              - img [ref=e1940]
+                              - text: Jan 1, 1
+                          - generic [ref=e1942]: Pagination Task 44
+                          - 'generic "Priority: Low" [ref=e1944]': Low
+                    - button "#55 0 Jan 1, 1 Pagination Task 43 Low" [ref=e1945] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e1946]:
+                        - generic [ref=e1947]:
+                          - generic [ref=e1948]:
+                            - generic [ref=e1949]:
+                              - img [ref=e1951]
+                              - generic [ref=e1953]: "#55"
+                              - text: "0"
+                            - generic [ref=e1954]:
+                              - img [ref=e1955]
+                              - text: Jan 1, 1
+                          - generic [ref=e1957]: Pagination Task 43
+                          - 'generic "Priority: Low" [ref=e1959]': Low
+                    - button "#54 0 Jan 1, 1 Pagination Task 42 Low" [ref=e1960] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e1961]:
+                        - generic [ref=e1962]:
+                          - generic [ref=e1963]:
+                            - generic [ref=e1964]:
+                              - img [ref=e1966]
+                              - generic [ref=e1968]: "#54"
+                              - text: "0"
+                            - generic [ref=e1969]:
+                              - img [ref=e1970]
+                              - text: Jan 1, 1
+                          - generic [ref=e1972]: Pagination Task 42
+                          - 'generic "Priority: Low" [ref=e1974]': Low
+                    - button "#53 0 Jan 1, 1 Pagination Task 41 Low" [ref=e1975] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e1976]:
+                        - generic [ref=e1977]:
+                          - generic [ref=e1978]:
+                            - generic [ref=e1979]:
+                              - img [ref=e1981]
+                              - generic [ref=e1983]: "#53"
+                              - text: "0"
+                            - generic [ref=e1984]:
+                              - img [ref=e1985]
+                              - text: Jan 1, 1
+                          - generic [ref=e1987]: Pagination Task 41
+                          - 'generic "Priority: Low" [ref=e1989]': Low
+                    - button "#52 0 Jan 1, 1 Pagination Task 40 Low" [ref=e1990] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e1991]:
+                        - generic [ref=e1992]:
+                          - generic [ref=e1993]:
+                            - generic [ref=e1994]:
+                              - img [ref=e1996]
+                              - generic [ref=e1998]: "#52"
+                              - text: "0"
+                            - generic [ref=e1999]:
+                              - img [ref=e2000]
+                              - text: Jan 1, 1
+                          - generic [ref=e2002]: Pagination Task 40
+                          - 'generic "Priority: Low" [ref=e2004]': Low
+                    - button "#51 0 Jan 1, 1 Pagination Task 39 Low" [ref=e2005] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e2006]:
+                        - generic [ref=e2007]:
+                          - generic [ref=e2008]:
+                            - generic [ref=e2009]:
+                              - img [ref=e2011]
+                              - generic [ref=e2013]: "#51"
+                              - text: "0"
+                            - generic [ref=e2014]:
+                              - img [ref=e2015]
+                              - text: Jan 1, 1
+                          - generic [ref=e2017]: Pagination Task 39
+                          - 'generic "Priority: Low" [ref=e2019]': Low
+                    - button "#50 0 Jan 1, 1 Pagination Task 38 Low" [ref=e2020] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e2021]:
+                        - generic [ref=e2022]:
+                          - generic [ref=e2023]:
+                            - generic [ref=e2024]:
+                              - img [ref=e2026]
+                              - generic [ref=e2028]: "#50"
+                              - text: "0"
+                            - generic [ref=e2029]:
+                              - img [ref=e2030]
+                              - text: Jan 1, 1
+                          - generic [ref=e2032]: Pagination Task 38
+                          - 'generic "Priority: Low" [ref=e2034]': Low
+                    - button "#49 0 Jan 1, 1 Pagination Task 37 Low" [ref=e2035] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e2036]:
+                        - generic [ref=e2037]:
+                          - generic [ref=e2038]:
+                            - generic [ref=e2039]:
+                              - img [ref=e2041]
+                              - generic [ref=e2043]: "#49"
+                              - text: "0"
+                            - generic [ref=e2044]:
+                              - img [ref=e2045]
+                              - text: Jan 1, 1
+                          - generic [ref=e2047]: Pagination Task 37
+                          - 'generic "Priority: Low" [ref=e2049]': Low
+                    - button "#48 0 Jan 1, 1 Pagination Task 36 Low" [ref=e2050] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e2051]:
+                        - generic [ref=e2052]:
+                          - generic [ref=e2053]:
+                            - generic [ref=e2054]:
+                              - img [ref=e2056]
+                              - generic [ref=e2058]: "#48"
+                              - text: "0"
+                            - generic [ref=e2059]:
+                              - img [ref=e2060]
+                              - text: Jan 1, 1
+                          - generic [ref=e2062]: Pagination Task 36
+                          - 'generic "Priority: Low" [ref=e2064]': Low
+                    - button "#47 0 Jan 1, 1 Pagination Task 35 Low" [ref=e2065] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e2066]:
+                        - generic [ref=e2067]:
+                          - generic [ref=e2068]:
+                            - generic [ref=e2069]:
+                              - img [ref=e2071]
+                              - generic [ref=e2073]: "#47"
+                              - text: "0"
+                            - generic [ref=e2074]:
+                              - img [ref=e2075]
+                              - text: Jan 1, 1
+                          - generic [ref=e2077]: Pagination Task 35
+                          - 'generic "Priority: Low" [ref=e2079]': Low
+                    - button "#46 0 Jan 1, 1 Pagination Task 34 Low" [ref=e2080] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e2081]:
+                        - generic [ref=e2082]:
+                          - generic [ref=e2083]:
+                            - generic [ref=e2084]:
+                              - img [ref=e2086]
+                              - generic [ref=e2088]: "#46"
+                              - text: "0"
+                            - generic [ref=e2089]:
+                              - img [ref=e2090]
+                              - text: Jan 1, 1
+                          - generic [ref=e2092]: Pagination Task 34
+                          - 'generic "Priority: Low" [ref=e2094]': Low
+                    - button "#45 0 Jan 1, 1 Pagination Task 33 Low" [ref=e2095] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e2096]:
+                        - generic [ref=e2097]:
+                          - generic [ref=e2098]:
+                            - generic [ref=e2099]:
+                              - img [ref=e2101]
+                              - generic [ref=e2103]: "#45"
+                              - text: "0"
+                            - generic [ref=e2104]:
+                              - img [ref=e2105]
+                              - text: Jan 1, 1
+                          - generic [ref=e2107]: Pagination Task 33
+                          - 'generic "Priority: Low" [ref=e2109]': Low
+                    - button "#44 0 Jan 1, 1 Pagination Task 32 Low" [ref=e2110] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e2111]:
+                        - generic [ref=e2112]:
+                          - generic [ref=e2113]:
+                            - generic [ref=e2114]:
+                              - img [ref=e2116]
+                              - generic [ref=e2118]: "#44"
+                              - text: "0"
+                            - generic [ref=e2119]:
+                              - img [ref=e2120]
+                              - text: Jan 1, 1
+                          - generic [ref=e2122]: Pagination Task 32
+                          - 'generic "Priority: Low" [ref=e2124]': Low
+                    - button "#43 0 Jan 1, 1 Pagination Task 31 Low" [ref=e2125] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e2126]:
+                        - generic [ref=e2127]:
+                          - generic [ref=e2128]:
+                            - generic [ref=e2129]:
+                              - img [ref=e2131]
+                              - generic [ref=e2133]: "#43"
+                              - text: "0"
+                            - generic [ref=e2134]:
+                              - img [ref=e2135]
+                              - text: Jan 1, 1
+                          - generic [ref=e2137]: Pagination Task 31
+                          - 'generic "Priority: Low" [ref=e2139]': Low
+                    - button "#42 0 Jan 1, 1 Pagination Task 30 Low" [ref=e2140] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e2141]:
+                        - generic [ref=e2142]:
+                          - generic [ref=e2143]:
+                            - generic [ref=e2144]:
+                              - img [ref=e2146]
+                              - generic [ref=e2148]: "#42"
+                              - text: "0"
+                            - generic [ref=e2149]:
+                              - img [ref=e2150]
+                              - text: Jan 1, 1
+                          - generic [ref=e2152]: Pagination Task 30
+                          - 'generic "Priority: Low" [ref=e2154]': Low
+                    - button "#41 0 Jan 1, 1 Pagination Task 29 Low" [ref=e2155] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e2156]:
+                        - generic [ref=e2157]:
+                          - generic [ref=e2158]:
+                            - generic [ref=e2159]:
+                              - img [ref=e2161]
+                              - generic [ref=e2163]: "#41"
+                              - text: "0"
+                            - generic [ref=e2164]:
+                              - img [ref=e2165]
+                              - text: Jan 1, 1
+                          - generic [ref=e2167]: Pagination Task 29
+                          - 'generic "Priority: Low" [ref=e2169]': Low
+                    - button "#40 0 Jan 1, 1 Pagination Task 28 Low" [ref=e2170] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e2171]:
+                        - generic [ref=e2172]:
+                          - generic [ref=e2173]:
+                            - generic [ref=e2174]:
+                              - img [ref=e2176]
+                              - generic [ref=e2178]: "#40"
+                              - text: "0"
+                            - generic [ref=e2179]:
+                              - img [ref=e2180]
+                              - text: Jan 1, 1
+                          - generic [ref=e2182]: Pagination Task 28
+                          - 'generic "Priority: Low" [ref=e2184]': Low
+                    - button "#39 0 Jan 1, 1 Pagination Task 27 Low" [ref=e2185] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e2186]:
+                        - generic [ref=e2187]:
+                          - generic [ref=e2188]:
+                            - generic [ref=e2189]:
+                              - img [ref=e2191]
+                              - generic [ref=e2193]: "#39"
+                              - text: "0"
+                            - generic [ref=e2194]:
+                              - img [ref=e2195]
+                              - text: Jan 1, 1
+                          - generic [ref=e2197]: Pagination Task 27
+                          - 'generic "Priority: Low" [ref=e2199]': Low
+                    - button "#38 0 Jan 1, 1 Pagination Task 26 Low" [ref=e2200] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e2201]:
+                        - generic [ref=e2202]:
+                          - generic [ref=e2203]:
+                            - generic [ref=e2204]:
+                              - img [ref=e2206]
+                              - generic [ref=e2208]: "#38"
+                              - text: "0"
+                            - generic [ref=e2209]:
+                              - img [ref=e2210]
+                              - text: Jan 1, 1
+                          - generic [ref=e2212]: Pagination Task 26
+                          - 'generic "Priority: Low" [ref=e2214]': Low
+                    - button "#37 0 Jan 1, 1 Pagination Task 25 Low" [ref=e2215] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e2216]:
+                        - generic [ref=e2217]:
+                          - generic [ref=e2218]:
+                            - generic [ref=e2219]:
+                              - img [ref=e2221]
+                              - generic [ref=e2223]: "#37"
+                              - text: "0"
+                            - generic [ref=e2224]:
+                              - img [ref=e2225]
+                              - text: Jan 1, 1
+                          - generic [ref=e2227]: Pagination Task 25
+                          - 'generic "Priority: Low" [ref=e2229]': Low
+                    - button "#36 0 Jan 1, 1 Pagination Task 24 Low" [ref=e2230] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e2231]:
+                        - generic [ref=e2232]:
+                          - generic [ref=e2233]:
+                            - generic [ref=e2234]:
+                              - img [ref=e2236]
+                              - generic [ref=e2238]: "#36"
+                              - text: "0"
+                            - generic [ref=e2239]:
+                              - img [ref=e2240]
+                              - text: Jan 1, 1
+                          - generic [ref=e2242]: Pagination Task 24
+                          - 'generic "Priority: Low" [ref=e2244]': Low
+                    - button "#35 0 Jan 1, 1 Pagination Task 23 Low" [ref=e2245] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e2246]:
+                        - generic [ref=e2247]:
+                          - generic [ref=e2248]:
+                            - generic [ref=e2249]:
+                              - img [ref=e2251]
+                              - generic [ref=e2253]: "#35"
+                              - text: "0"
+                            - generic [ref=e2254]:
+                              - img [ref=e2255]
+                              - text: Jan 1, 1
+                          - generic [ref=e2257]: Pagination Task 23
+                          - 'generic "Priority: Low" [ref=e2259]': Low
+                    - button "#34 0 Jan 1, 1 Pagination Task 22 Low" [ref=e2260] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e2261]:
+                        - generic [ref=e2262]:
+                          - generic [ref=e2263]:
+                            - generic [ref=e2264]:
+                              - img [ref=e2266]
+                              - generic [ref=e2268]: "#34"
+                              - text: "0"
+                            - generic [ref=e2269]:
+                              - img [ref=e2270]
+                              - text: Jan 1, 1
+                          - generic [ref=e2272]: Pagination Task 22
+                          - 'generic "Priority: Low" [ref=e2274]': Low
+                    - button "#33 0 Jan 1, 1 Pagination Task 21 Low" [ref=e2275] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e2276]:
+                        - generic [ref=e2277]:
+                          - generic [ref=e2278]:
+                            - generic [ref=e2279]:
+                              - img [ref=e2281]
+                              - generic [ref=e2283]: "#33"
+                              - text: "0"
+                            - generic [ref=e2284]:
+                              - img [ref=e2285]
+                              - text: Jan 1, 1
+                          - generic [ref=e2287]: Pagination Task 21
+                          - 'generic "Priority: Low" [ref=e2289]': Low
+                    - button "#32 0 Jan 1, 1 Pagination Task 20 Low" [ref=e2290] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e2291]:
+                        - generic [ref=e2292]:
+                          - generic [ref=e2293]:
+                            - generic [ref=e2294]:
+                              - img [ref=e2296]
+                              - generic [ref=e2298]: "#32"
+                              - text: "0"
+                            - generic [ref=e2299]:
+                              - img [ref=e2300]
+                              - text: Jan 1, 1
+                          - generic [ref=e2302]: Pagination Task 20
+                          - 'generic "Priority: Low" [ref=e2304]': Low
+                    - button "#31 0 Jan 1, 1 Pagination Task 19 Low" [ref=e2305] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e2306]:
+                        - generic [ref=e2307]:
+                          - generic [ref=e2308]:
+                            - generic [ref=e2309]:
+                              - img [ref=e2311]
+                              - generic [ref=e2313]: "#31"
+                              - text: "0"
+                            - generic [ref=e2314]:
+                              - img [ref=e2315]
+                              - text: Jan 1, 1
+                          - generic [ref=e2317]: Pagination Task 19
+                          - 'generic "Priority: Low" [ref=e2319]': Low
+                    - button "#30 0 Jan 1, 1 Pagination Task 18 Low" [ref=e2320] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e2321]:
+                        - generic [ref=e2322]:
+                          - generic [ref=e2323]:
+                            - generic [ref=e2324]:
+                              - img [ref=e2326]
+                              - generic [ref=e2328]: "#30"
+                              - text: "0"
+                            - generic [ref=e2329]:
+                              - img [ref=e2330]
+                              - text: Jan 1, 1
+                          - generic [ref=e2332]: Pagination Task 18
+                          - 'generic "Priority: Low" [ref=e2334]': Low
+                    - button "#29 0 Jan 1, 1 Pagination Task 17 Low" [ref=e2335] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e2336]:
+                        - generic [ref=e2337]:
+                          - generic [ref=e2338]:
+                            - generic [ref=e2339]:
+                              - img [ref=e2341]
+                              - generic [ref=e2343]: "#29"
+                              - text: "0"
+                            - generic [ref=e2344]:
+                              - img [ref=e2345]
+                              - text: Jan 1, 1
+                          - generic [ref=e2347]: Pagination Task 17
+                          - 'generic "Priority: Low" [ref=e2349]': Low
+                    - button "#28 0 Jan 1, 1 Pagination Task 16 Low" [ref=e2350] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e2351]:
+                        - generic [ref=e2352]:
+                          - generic [ref=e2353]:
+                            - generic [ref=e2354]:
+                              - img [ref=e2356]
+                              - generic [ref=e2358]: "#28"
+                              - text: "0"
+                            - generic [ref=e2359]:
+                              - img [ref=e2360]
+                              - text: Jan 1, 1
+                          - generic [ref=e2362]: Pagination Task 16
+                          - 'generic "Priority: Low" [ref=e2364]': Low
+                    - button "#27 0 Jan 1, 1 Pagination Task 15 Low" [ref=e2365] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e2366]:
+                        - generic [ref=e2367]:
+                          - generic [ref=e2368]:
+                            - generic [ref=e2369]:
+                              - img [ref=e2371]
+                              - generic [ref=e2373]: "#27"
+                              - text: "0"
+                            - generic [ref=e2374]:
+                              - img [ref=e2375]
+                              - text: Jan 1, 1
+                          - generic [ref=e2377]: Pagination Task 15
+                          - 'generic "Priority: Low" [ref=e2379]': Low
+                    - button "#26 0 Jan 1, 1 Pagination Task 14 Low" [ref=e2380] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e2381]:
+                        - generic [ref=e2382]:
+                          - generic [ref=e2383]:
+                            - generic [ref=e2384]:
+                              - img [ref=e2386]
+                              - generic [ref=e2388]: "#26"
+                              - text: "0"
+                            - generic [ref=e2389]:
+                              - img [ref=e2390]
+                              - text: Jan 1, 1
+                          - generic [ref=e2392]: Pagination Task 14
+                          - 'generic "Priority: Low" [ref=e2394]': Low
+                    - button "#25 0 Jan 1, 1 Pagination Task 13 Low" [ref=e2395] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e2396]:
+                        - generic [ref=e2397]:
+                          - generic [ref=e2398]:
+                            - generic [ref=e2399]:
+                              - img [ref=e2401]
+                              - generic [ref=e2403]: "#25"
+                              - text: "0"
+                            - generic [ref=e2404]:
+                              - img [ref=e2405]
+                              - text: Jan 1, 1
+                          - generic [ref=e2407]: Pagination Task 13
+                          - 'generic "Priority: Low" [ref=e2409]': Low
+                    - button "#24 0 Jan 1, 1 Pagination Task 12 Low" [ref=e2410] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e2411]:
+                        - generic [ref=e2412]:
+                          - generic [ref=e2413]:
+                            - generic [ref=e2414]:
+                              - img [ref=e2416]
+                              - generic [ref=e2418]: "#24"
+                              - text: "0"
+                            - generic [ref=e2419]:
+                              - img [ref=e2420]
+                              - text: Jan 1, 1
+                          - generic [ref=e2422]: Pagination Task 12
+                          - 'generic "Priority: Low" [ref=e2424]': Low
+                    - button "#23 0 Jan 1, 1 Pagination Task 11 Low" [ref=e2425] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e2426]:
+                        - generic [ref=e2427]:
+                          - generic [ref=e2428]:
+                            - generic [ref=e2429]:
+                              - img [ref=e2431]
+                              - generic [ref=e2433]: "#23"
+                              - text: "0"
+                            - generic [ref=e2434]:
+                              - img [ref=e2435]
+                              - text: Jan 1, 1
+                          - generic [ref=e2437]: Pagination Task 11
+                          - 'generic "Priority: Low" [ref=e2439]': Low
+                    - button "#22 0 Jan 1, 1 Pagination Task 10 Low" [ref=e2440] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e2441]:
+                        - generic [ref=e2442]:
+                          - generic [ref=e2443]:
+                            - generic [ref=e2444]:
+                              - img [ref=e2446]
+                              - generic [ref=e2448]: "#22"
+                              - text: "0"
+                            - generic [ref=e2449]:
+                              - img [ref=e2450]
+                              - text: Jan 1, 1
+                          - generic [ref=e2452]: Pagination Task 10
+                          - 'generic "Priority: Low" [ref=e2454]': Low
+                    - button "#21 0 Jan 1, 1 Pagination Task 9 Low" [ref=e2455] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e2456]:
+                        - generic [ref=e2457]:
+                          - generic [ref=e2458]:
+                            - generic [ref=e2459]:
+                              - img [ref=e2461]
+                              - generic [ref=e2463]: "#21"
+                              - text: "0"
+                            - generic [ref=e2464]:
+                              - img [ref=e2465]
+                              - text: Jan 1, 1
+                          - generic [ref=e2467]: Pagination Task 9
+                          - 'generic "Priority: Low" [ref=e2469]': Low
+                    - button "#20 0 Jan 1, 1 Pagination Task 8 Low" [ref=e2470] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e2471]:
+                        - generic [ref=e2472]:
+                          - generic [ref=e2473]:
+                            - generic [ref=e2474]:
+                              - img [ref=e2476]
+                              - generic [ref=e2478]: "#20"
+                              - text: "0"
+                            - generic [ref=e2479]:
+                              - img [ref=e2480]
+                              - text: Jan 1, 1
+                          - generic [ref=e2482]: Pagination Task 8
+                          - 'generic "Priority: Low" [ref=e2484]': Low
+                    - button "#19 0 Jan 1, 1 Pagination Task 7 Low" [ref=e2485] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e2486]:
+                        - generic [ref=e2487]:
+                          - generic [ref=e2488]:
+                            - generic [ref=e2489]:
+                              - img [ref=e2491]
+                              - generic [ref=e2493]: "#19"
+                              - text: "0"
+                            - generic [ref=e2494]:
+                              - img [ref=e2495]
+                              - text: Jan 1, 1
+                          - generic [ref=e2497]: Pagination Task 7
+                          - 'generic "Priority: Low" [ref=e2499]': Low
+                    - button "#18 0 Jan 1, 1 Pagination Task 6 Low" [ref=e2500] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e2501]:
+                        - generic [ref=e2502]:
+                          - generic [ref=e2503]:
+                            - generic [ref=e2504]:
+                              - img [ref=e2506]
+                              - generic [ref=e2508]: "#18"
+                              - text: "0"
+                            - generic [ref=e2509]:
+                              - img [ref=e2510]
+                              - text: Jan 1, 1
+                          - generic [ref=e2512]: Pagination Task 6
+                          - 'generic "Priority: Low" [ref=e2514]': Low
+                    - button "#17 0 Jan 1, 1 Pagination Task 5 Low" [ref=e2515] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e2516]:
+                        - generic [ref=e2517]:
+                          - generic [ref=e2518]:
+                            - generic [ref=e2519]:
+                              - img [ref=e2521]
+                              - generic [ref=e2523]: "#17"
+                              - text: "0"
+                            - generic [ref=e2524]:
+                              - img [ref=e2525]
+                              - text: Jan 1, 1
+                          - generic [ref=e2527]: Pagination Task 5
+                          - 'generic "Priority: Low" [ref=e2529]': Low
+                    - button "#16 0 Jan 1, 1 Pagination Task 4 Low" [ref=e2530] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e2531]:
+                        - generic [ref=e2532]:
+                          - generic [ref=e2533]:
+                            - generic [ref=e2534]:
+                              - img [ref=e2536]
+                              - generic [ref=e2538]: "#16"
+                              - text: "0"
+                            - generic [ref=e2539]:
+                              - img [ref=e2540]
+                              - text: Jan 1, 1
+                          - generic [ref=e2542]: Pagination Task 4
+                          - 'generic "Priority: Low" [ref=e2544]': Low
+                    - button "#15 0 Jan 1, 1 Pagination Task 3 Low" [ref=e2545] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e2546]:
+                        - generic [ref=e2547]:
+                          - generic [ref=e2548]:
+                            - generic [ref=e2549]:
+                              - img [ref=e2551]
+                              - generic [ref=e2553]: "#15"
+                              - text: "0"
+                            - generic [ref=e2554]:
+                              - img [ref=e2555]
+                              - text: Jan 1, 1
+                          - generic [ref=e2557]: Pagination Task 3
+                          - 'generic "Priority: Low" [ref=e2559]': Low
+                    - button "#14 0 Jan 1, 1 Pagination Task 2 Low" [ref=e2560] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e2561]:
+                        - generic [ref=e2562]:
+                          - generic [ref=e2563]:
+                            - generic [ref=e2564]:
+                              - img [ref=e2566]
+                              - generic [ref=e2568]: "#14"
+                              - text: "0"
+                            - generic [ref=e2569]:
+                              - img [ref=e2570]
+                              - text: Jan 1, 1
+                          - generic [ref=e2572]: Pagination Task 2
+                          - 'generic "Priority: Low" [ref=e2574]': Low
+                    - button "#13 0 Jan 1, 1 Pagination Task 1 Low" [ref=e2575] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e2576]:
+                        - generic [ref=e2577]:
+                          - generic [ref=e2578]:
+                            - generic [ref=e2579]:
+                              - img [ref=e2581]
+                              - generic [ref=e2583]: "#13"
+                              - text: "0"
+                            - generic [ref=e2584]:
+                              - img [ref=e2585]
+                              - text: Jan 1, 1
+                          - generic [ref=e2587]: Pagination Task 1
+                          - 'generic "Priority: Low" [ref=e2589]': Low
+                - generic [ref=e2590]:
+                  - generic [ref=e2591]:
+                    - button "拖拽调整分组顺序" [ref=e2592]:
+                      - img [ref=e2593]
+                    - generic [ref=e2600]:
+                      - img "完成列" [ref=e2601]
+                      - heading "Done" [level=3] [ref=e2604]
+                      - text: "0"
+                    - generic [ref=e2605]:
+                      - button "新建任务" [ref=e2606] [cursor=pointer]:
+                        - img [ref=e2607]
+                      - button "更多操作" [ref=e2609] [cursor=pointer]:
+                        - img [ref=e2610]
+                  - button "新建任务" [ref=e2615] [cursor=pointer]:
+                    - img [ref=e2616]
+                    - text: 新建任务
+                - button "新建分组" [ref=e2618] [cursor=pointer]:
+                  - img [ref=e2619]
+                  - text: 新建分组
+            - status [ref=e2620]
+    - generic [ref=e356]:
+      - button "WinAmz Seller" [ref=e358] [cursor=pointer]:
+        - generic:
+          - img
+      - button "WinAmz Buyer" [ref=e360] [cursor=pointer]:
+        - generic:
+          - img
+      - button "WinAmz Connect" [ref=e362] [cursor=pointer]:
+        - generic:
+          - img
+      - button "WinAmz Ops" [ref=e364] [cursor=pointer]:
+        - generic:
+          - img
+      - button "WinAmz Ads" [ref=e366] [cursor=pointer]:
+        - generic:
+          - img
+      - button "WinAmz Finance" [ref=e368] [cursor=pointer]:
+        - generic:
+          - img
+      - button "WinAmz Supply" [ref=e370] [cursor=pointer]:
+        - generic:
+          - img
+      - button "WinAmz Shield" [ref=e372] [cursor=pointer]:
+        - generic:
+          - img
+      - button "WinAmz Intel" [ref=e374] [cursor=pointer]:
+        - generic:
+          - img

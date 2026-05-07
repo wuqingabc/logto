@@ -1,0 +1,42 @@
+- generic [ref=e4]:
+  - generic [ref=e5]:
+    - generic [ref=e6]:
+      - img "WinAMZ Launcher" [ref=e8]
+      - heading "WinAMZ Launcher" [level=1] [ref=e9]
+      - paragraph [ref=e10]: 统一启动器 · 个人工作台
+    - separator [ref=e11]
+    - generic [ref=e12]:
+      - generic [ref=e15]:
+        - generic [ref=e16]: 公司名称
+        - generic [ref=e17]:
+          - img [ref=e18]
+          - combobox "公司名称" [ref=e22]
+          - generic [ref=e23]:
+            - button:
+              - img
+            - button "Show suggestions" [ref=e24] [cursor=pointer]:
+              - img [ref=e25]
+      - generic [ref=e28]:
+        - generic [ref=e29]: 用户名
+        - generic [ref=e30]:
+          - img [ref=e31]
+          - textbox "用户名" [ref=e34]:
+            - /placeholder: 请输入用户名
+      - generic [ref=e36]:
+        - generic [ref=e37]: 密码
+        - generic [ref=e38]:
+          - img [ref=e39]
+          - textbox "密码" [ref=e42]:
+            - /placeholder: 请输入密码
+          - button [ref=e43] [cursor=pointer]:
+            - img [ref=e44]
+      - button "登录" [ref=e47] [cursor=pointer]
+      - button "清除本设备登录历史" [ref=e49] [cursor=pointer]
+    - generic [ref=e50]:
+      - img [ref=e51]
+      - paragraph [ref=e54]: 登录态由 winamz-core 一次性 ticket 安全派发
+  - generic [ref=e55]:
+    - generic [ref=e57]: 🚀 一键启动 9 子产品
+    - generic [ref=e59]: 🍅 番茄钟
+    - generic [ref=e61]: 🎯 OKR 目标
+  - paragraph [ref=e62]: WinAmz Launcher v0.1.0

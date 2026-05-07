@@ -1,0 +1,397 @@
+- generic [ref=e1]:
+  - generic [ref=e63]:
+    - log
+    - log
+  - generic [ref=e106]:
+    - generic [ref=e107]:
+      - button "工作台" [ref=e108] [cursor=pointer]:
+        - img [ref=e109]
+        - generic [ref=e112]: 工作台
+      - button "项目管理" [ref=e113] [cursor=pointer]:
+        - img [ref=e114]
+        - generic [ref=e116]: 项目管理
+    - generic [ref=e117]:
+      - generic [ref=e118]:
+        - generic [ref=e119]: 快
+        - generic [ref=e120]: 快马奔腾科技有限公司 · admin
+      - button "设置（待开发）" [ref=e121] [cursor=pointer]:
+        - img [ref=e122]
+      - button "退出登录" [ref=e125] [cursor=pointer]:
+        - img [ref=e126]
+    - generic [ref=e129]:
+      - generic [ref=e135]:
+        - generic [ref=e136]:
+          - generic [ref=e137]: 17:24
+          - generic [ref=e138]: 2026.05.05 周二
+          - generic [ref=e139]:
+            - text: 下午好
+            - generic [ref=e140]: ", 快马奔腾科技有限公司 · admin"
+        - generic [ref=e141]:
+          - generic [ref=e142]:
+            - generic [ref=e143]:
+              - generic [ref=e144]: 番茄钟
+              - generic [ref=e145]: 今日 0 个 · 0 分钟
+            - generic [ref=e146]:
+              - generic [ref=e147]: 25:00
+              - generic [ref=e148]: 准备开始 25 分钟专注
+            - button "开始" [ref=e150] [cursor=pointer]:
+              - img [ref=e151]
+              - text: 开始
+          - generic [ref=e153]:
+            - generic [ref=e154]:
+              - generic [ref=e155]: 四象限任务
+              - generic [ref=e156]: 0 项待办
+            - generic [ref=e157]:
+              - generic [ref=e158]:
+                - generic [ref=e159]:
+                  - generic [ref=e160]:
+                    - generic [ref=e161]: 重要紧急
+                    - generic [ref=e162]: 立即做
+                  - button "添加任务" [ref=e163] [cursor=pointer]:
+                    - img [ref=e164]
+                - list [ref=e165]
+              - generic [ref=e166]:
+                - generic [ref=e167]:
+                  - generic [ref=e168]:
+                    - generic [ref=e169]: 重要不紧急
+                    - generic [ref=e170]: 计划做
+                  - button "添加任务" [ref=e171] [cursor=pointer]:
+                    - img [ref=e172]
+                - list [ref=e173]
+              - generic [ref=e174]:
+                - generic [ref=e175]:
+                  - generic [ref=e176]:
+                    - generic [ref=e177]: 紧急不重要
+                    - generic [ref=e178]: 委托做
+                  - button "添加任务" [ref=e179] [cursor=pointer]:
+                    - img [ref=e180]
+                - list [ref=e181]
+              - generic [ref=e182]:
+                - generic [ref=e183]:
+                  - generic [ref=e184]:
+                    - generic [ref=e185]: 不重要不紧急
+                    - generic [ref=e186]: 少做或不做
+                  - button "添加任务" [ref=e187] [cursor=pointer]:
+                    - img [ref=e188]
+                - list [ref=e189]
+        - generic [ref=e191]:
+          - generic [ref=e192]:
+            - generic [ref=e193]:
+              - img [ref=e194]
+              - generic [ref=e198]: OKR · 2026-Q2
+            - generic [ref=e199]:
+              - generic [ref=e200]: 0 个目标 · 总体 0%
+              - textbox "2026-Q2" [ref=e201]
+              - button "加目标" [ref=e202] [cursor=pointer]:
+                - img [ref=e203]
+                - text: 加目标
+          - generic [ref=e205]: 还没有目标。点右上"加目标"开始本季度规划。
+      - generic [ref=e210]:
+        - complementary [ref=e3556]:
+          - generic [ref=e3557]:
+            - button "Overview" [ref=e3558] [cursor=pointer]:
+              - img [ref=e3559]
+              - generic [ref=e3562]: Overview
+            - button "Upcoming" [ref=e3563] [cursor=pointer]:
+              - img [ref=e3564]
+              - generic [ref=e3566]: Upcoming
+            - button "Inbox" [ref=e3567] [cursor=pointer]:
+              - img [ref=e3568]
+              - generic [ref=e3571]: Inbox
+            - generic [ref=e3572]:
+              - generic [ref=e3573]: Projects
+              - button "新建项目" [ref=e3574] [cursor=pointer]:
+                - img [ref=e3575]
+            - generic [ref=e3577] [cursor=pointer]:
+              - generic [ref=e3578]: Inbox
+              - button "创建子项目" [ref=e3579]:
+                - img [ref=e3580]
+              - button "项目设置" [ref=e3581]:
+                - img [ref=e3582]
+            - generic [ref=e3584] [cursor=pointer]:
+              - generic [ref=e3585]: 空调清库存
+              - button "创建子项目" [ref=e3586]:
+                - img [ref=e3587]
+              - button "项目设置" [ref=e3588]:
+                - img [ref=e3589]
+            - button "Labels" [ref=e3591] [cursor=pointer]:
+              - img [ref=e3592]
+              - generic [ref=e3595]: Labels
+            - button "Teams" [ref=e3596] [cursor=pointer]:
+              - img [ref=e3597]
+              - generic [ref=e3602]: Teams
+            - button "Filters" [ref=e3603] [cursor=pointer]:
+              - img [ref=e3604]
+              - generic [ref=e3606]: Filters
+            - button "Settings" [ref=e3607] [cursor=pointer]:
+              - img [ref=e3608]
+              - generic [ref=e3611]: Settings
+        - main [ref=e3612]:
+          - generic [ref=e3613]:
+            - button "收起侧边栏" [ref=e3614] [cursor=pointer]:
+              - img [ref=e3615]
+            - generic [ref=e3618]:
+              - heading "空调清库存" [level=1] [ref=e3619]
+              - generic [ref=e3620]:
+                - generic [ref=e3621]:
+                  - button "List" [ref=e3622] [cursor=pointer]:
+                    - img [ref=e3623]
+                    - text: List
+                  - button "Kanban" [active] [ref=e3626] [cursor=pointer]:
+                    - img [ref=e3627]
+                    - text: Kanban
+                  - button "Calendar" [ref=e3628] [cursor=pointer]:
+                    - img [ref=e3629]
+                    - text: Calendar
+                  - button "Table" [ref=e3631] [cursor=pointer]:
+                    - img [ref=e3632]
+                    - text: Table
+                  - button "Gantt" [ref=e3634] [cursor=pointer]:
+                    - img [ref=e3635]
+                    - text: Gantt
+                - button "编辑当前视图" [ref=e3637] [cursor=pointer]:
+                  - img [ref=e3638]
+                - button "创建新视图" [ref=e3641] [cursor=pointer]:
+                  - img [ref=e3642]
+                - button "通知" [ref=e3644] [cursor=pointer]:
+                  - img [ref=e3645]
+                - button "系" [ref=e3649] [cursor=pointer]
+          - generic [ref=e3650]:
+            - generic [ref=e4837]:
+              - generic [ref=e4838]:
+                - button "过滤" [ref=e4840] [cursor=pointer]:
+                  - img [ref=e4841]
+                  - text: 过滤
+                - button "分组配置" [ref=e4843] [cursor=pointer]:
+                  - img [ref=e4844]
+                  - text: 分组配置
+              - generic [ref=e4848]:
+                - generic [ref=e4849]:
+                  - generic [ref=e4850]:
+                    - button "拖拽调整分组顺序" [ref=e4851]:
+                      - img [ref=e4852]
+                    - generic [ref=e4859]:
+                      - heading "Doing" [level=3] [ref=e4860]
+                      - generic "2 / 2 · 已达上限" [ref=e4861]: 2 / 2
+                    - generic [ref=e4862]:
+                      - button "已达 WIP limit,无法新增" [disabled] [ref=e4863]:
+                        - img [ref=e4864]
+                      - button "更多操作" [ref=e4866] [cursor=pointer]:
+                        - img [ref=e4867]
+                  - generic [ref=e4871]:
+                    - button "#7 0 Jan 1, 1 Kanban 测试任务 2" [ref=e4872] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e4873]:
+                        - generic [ref=e4874]:
+                          - generic [ref=e4875]:
+                            - generic [ref=e4876]:
+                              - img [ref=e4878]
+                              - generic [ref=e4880]: "#7"
+                              - text: "0"
+                            - generic [ref=e4881]:
+                              - img [ref=e4882]
+                              - text: Jan 1, 1
+                          - generic [ref=e4884]: Kanban 测试任务 2
+                    - button "#6 0 Jan 1, 1 Kanban 测试任务 1" [ref=e4886] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e4887]:
+                        - generic [ref=e4888]:
+                          - generic [ref=e4889]:
+                            - generic [ref=e4890]:
+                              - img [ref=e4892]
+                              - generic [ref=e4894]: "#6"
+                              - text: "0"
+                            - generic [ref=e4895]:
+                              - img [ref=e4896]
+                              - text: Jan 1, 1
+                          - generic [ref=e4898]: Kanban 测试任务 1
+                - generic [ref=e4900]:
+                  - generic [ref=e4901]:
+                    - button "拖拽调整分组顺序" [ref=e4902]:
+                      - img [ref=e4903]
+                    - generic [ref=e4910]:
+                      - heading "To-Do" [level=3] [ref=e4911]
+                      - text: "0"
+                      - generic "默认分组" [ref=e4912]: 默认
+                    - generic [ref=e4913]:
+                      - button "新建任务" [ref=e4914] [cursor=pointer]:
+                        - img [ref=e4915]
+                      - button "更多操作" [ref=e4917] [cursor=pointer]:
+                        - img [ref=e4918]
+                  - generic [ref=e4922]:
+                    - button "#12 0 Jan 1, 1 WS Test 任务 2 Urgent" [ref=e4923] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e4924]:
+                        - generic [ref=e4925]:
+                          - generic [ref=e4926]:
+                            - generic [ref=e4927]:
+                              - img [ref=e4929]
+                              - generic [ref=e4931]: "#12"
+                              - text: "0"
+                            - generic [ref=e4932]:
+                              - img [ref=e4933]
+                              - text: Jan 1, 1
+                          - generic [ref=e4935]: WS Test 任务 2
+                          - 'generic "Priority: Urgent" [ref=e4937]':
+                            - img [ref=e4938]
+                            - text: Urgent
+                    - button "#11 0 Jan 1, 1 WS 实时测试任务 Urgent" [ref=e4940] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e4941]:
+                        - generic [ref=e4942]:
+                          - generic [ref=e4943]:
+                            - generic [ref=e4944]:
+                              - img [ref=e4946]
+                              - generic [ref=e4948]: "#11"
+                              - text: "0"
+                            - generic [ref=e4949]:
+                              - img [ref=e4950]
+                              - text: Jan 1, 1
+                          - generic [ref=e4952]: WS 实时测试任务
+                          - 'generic "Priority: Urgent" [ref=e4954]':
+                            - img [ref=e4955]
+                            - text: Urgent
+                    - button "#10 0 Jan 1, 1 Kanban 测试任务 5" [ref=e4957] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e4958]:
+                        - generic [ref=e4959]:
+                          - generic [ref=e4960]:
+                            - generic [ref=e4961]:
+                              - img [ref=e4963]
+                              - generic [ref=e4965]: "#10"
+                              - text: "0"
+                            - generic [ref=e4966]:
+                              - img [ref=e4967]
+                              - text: Jan 1, 1
+                          - generic [ref=e4969]: Kanban 测试任务 5
+                    - button "#9 0 Jan 1, 1 Kanban 测试任务 4" [ref=e4971] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e4972]:
+                        - generic [ref=e4973]:
+                          - generic [ref=e4974]:
+                            - generic [ref=e4975]:
+                              - img [ref=e4977]
+                              - generic [ref=e4979]: "#9"
+                              - text: "0"
+                            - generic [ref=e4980]:
+                              - img [ref=e4981]
+                              - text: Jan 1, 1
+                          - generic [ref=e4983]: Kanban 测试任务 4
+                    - button "#8 0 Jan 1, 1 Kanban 测试任务 3" [ref=e4985] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e4986]:
+                        - generic [ref=e4987]:
+                          - generic [ref=e4988]:
+                            - generic [ref=e4989]:
+                              - img [ref=e4991]
+                              - generic [ref=e4993]: "#8"
+                              - text: "0"
+                            - generic [ref=e4994]:
+                              - img [ref=e4995]
+                              - text: Jan 1, 1
+                          - generic [ref=e4997]: Kanban 测试任务 3
+                    - button "#5 0 May 6 每日 standup(repeating) High 周期性任务" [ref=e4999] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e5000]:
+                        - generic [ref=e5001]:
+                          - generic [ref=e5002]:
+                            - generic [ref=e5003]:
+                              - img [ref=e5005]
+                              - generic [ref=e5007]: "#5"
+                              - text: "0"
+                            - generic [ref=e5008]:
+                              - img [ref=e5009]
+                              - text: May 6
+                          - generic [ref=e5011]: 每日 standup(repeating)
+                          - generic [ref=e5012]:
+                            - 'generic "Priority: High" [ref=e5013]': High
+                            - img "周期性任务" [ref=e5014]
+                    - button "#4 0 May 6 finishied in" [ref=e5018] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e5019]:
+                        - generic [ref=e5020]:
+                          - generic [ref=e5021]:
+                            - generic [ref=e5022]:
+                              - img [ref=e5024]
+                              - generic [ref=e5026]: "#4"
+                              - text: "0"
+                            - generic [ref=e5027]:
+                              - img [ref=e5028]
+                              - text: May 6
+                          - generic [ref=e5030]: finishied in
+                    - button "#3 0 Jan 1, 1 明天完成" [ref=e5032] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e5033]:
+                        - generic [ref=e5034]:
+                          - generic [ref=e5035]:
+                            - generic [ref=e5036]:
+                              - img [ref=e5038]
+                              - generic [ref=e5040]: "#3"
+                              - text: "0"
+                            - generic [ref=e5041]:
+                              - img [ref=e5042]
+                              - text: Jan 1, 1
+                          - generic [ref=e5044]: 明天完成
+                    - button "#2 0 Jan 1, 1 asdfasdfa" [ref=e5046] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e5047]:
+                        - generic [ref=e5048]:
+                          - generic [ref=e5049]:
+                            - generic [ref=e5050]:
+                              - img [ref=e5052]
+                              - generic [ref=e5054]: "#2"
+                              - text: "0"
+                            - generic [ref=e5055]:
+                              - img [ref=e5056]
+                              - text: Jan 1, 1
+                          - generic [ref=e5058]: asdfasdfa
+                    - button "#1 0 Jan 1, 1 asdfasdf 任务有描述" [ref=e5060] [cursor=pointer]:
+                      - generic "单击：打开详情；⌘/Ctrl+单击：标记完成" [ref=e5061]:
+                        - generic [ref=e5062]:
+                          - generic [ref=e5063]:
+                            - generic [ref=e5064]:
+                              - img [ref=e5066]
+                              - generic [ref=e5068]: "#1"
+                              - text: "0"
+                            - generic [ref=e5069]:
+                              - img [ref=e5070]
+                              - text: Jan 1, 1
+                          - generic [ref=e5072]: asdfasdf
+                          - img "任务有描述" [ref=e5074]
+                - generic [ref=e5075]:
+                  - generic [ref=e5076]:
+                    - button "拖拽调整分组顺序" [ref=e5077]:
+                      - img [ref=e5078]
+                    - generic [ref=e5085]:
+                      - img "完成列" [ref=e5086]
+                      - heading "Done" [level=3] [ref=e5089]
+                      - text: "0"
+                    - generic [ref=e5090]:
+                      - button "新建任务" [ref=e5091] [cursor=pointer]:
+                        - img [ref=e5092]
+                      - button "更多操作" [ref=e5094] [cursor=pointer]:
+                        - img [ref=e5095]
+                  - button "新建任务" [ref=e5100] [cursor=pointer]:
+                    - img [ref=e5101]
+                    - text: 新建任务
+                - button "新建分组" [ref=e5103] [cursor=pointer]:
+                  - img [ref=e5104]
+                  - text: 新建分组
+            - status [ref=e5105]
+    - generic [ref=e542]:
+      - button "WinAmz Seller" [ref=e544] [cursor=pointer]:
+        - generic:
+          - img
+      - button "WinAmz Buyer" [ref=e546] [cursor=pointer]:
+        - generic:
+          - img
+      - button "WinAmz Connect" [ref=e548] [cursor=pointer]:
+        - generic:
+          - img
+      - button "WinAmz Ops" [ref=e550] [cursor=pointer]:
+        - generic:
+          - img
+      - button "WinAmz Ads" [ref=e552] [cursor=pointer]:
+        - generic:
+          - img
+      - button "WinAmz Finance" [ref=e554] [cursor=pointer]:
+        - generic:
+          - img
+      - button "WinAmz Supply" [ref=e556] [cursor=pointer]:
+        - generic:
+          - img
+      - button "WinAmz Shield" [ref=e558] [cursor=pointer]:
+        - generic:
+          - img
+      - button "WinAmz Intel" [ref=e560] [cursor=pointer]:
+        - generic:
+          - img
