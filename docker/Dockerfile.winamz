@@ -6,14 +6,21 @@
 ARG UPSTREAM_VERSION=v1.37.1
 FROM node:22-alpine AS builder
 
-# 安装构建依赖
-RUN apk add --no-cache python3 make g++ git
+# 安装构建依赖（apk 走阿里云镜像,避免国内拉 alpine CDN 慢）
+RUN sed -i 's|dl-cdn.alpinelinux.org|mirrors.aliyun.com|g' /etc/apk/repositories && \
+    apk add --no-cache python3 make g++ git rsync
 
 WORKDIR /app
 COPY --link . /app/
 
 # 安装 + 构建（patch 已 apply 到工作树）
-RUN corepack enable && pnpm install --frozen-lockfile=false
+# pnpm pin@10:corepack enable 默认激活 pnpm 11,违反 logto engines pnpm ^9||^10
+#                              → ERR_PNPM_UNSUPPORTED_ENGINE。官方 Dockerfile 也用 pnpm@^10。
+# npmmirror:避免国内拉 registry.npmjs.org 卡死;CI=true 非交互
+ENV CI=true
+RUN corepack enable && corepack prepare pnpm@10.33.2 --activate && \
+    pnpm config set registry https://registry.npmmirror.com && \
+    pnpm install --frozen-lockfile=false
 RUN pnpm prepack && pnpm -r build
 
 # Runtime stage
