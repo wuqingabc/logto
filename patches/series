@@ -8,3 +8,4 @@
 0008-ci-GitHub-Actions-CI-pipeline.patch
 0009-chore-build-Docker.patch
 0010-feat-silent-grant-endpoint-for-trusted-launcher-to-p.patch
+0011-feat-winamz-seed-gap-alteration-ensure-Management-AP.patch

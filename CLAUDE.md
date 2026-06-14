@@ -28,7 +28,7 @@ Logto OIDC 服务部署 + 我方扩展（**Patch Stack 模式**，详见 [winamz
 
 ---
 
-## 当前 patches 清单（9 个）
+## 当前 patches 清单（11 个）
 
 | 序号 | 内容 |
 |-----|------|
@@ -41,8 +41,18 @@ Logto OIDC 服务部署 + 我方扩展（**Patch Stack 模式**，详见 [winamz
 | 0007 | chore：rename alteration file next → 1.37.1 |
 | 0008 | ci：GitHub Actions CI pipeline |
 | 0009 | chore：忽略 build/ Docker 产物 |
+| 0010 | feat：silent grant endpoint（trusted launcher 免密换 token） |
+| 0011 | feat：seed-gap alteration —— 幂等补 Management API `all` scope（修 M2M 全 403，2026-06-14 A2 SSO 续接，真跑验过 M2M 恢复 200） |
 
 完整文件名见 `patches/series`。
+
+### winamz-logto 三个隐藏 seed/build gap 的固化（2026-06-14）
+
+dev 实例曾手动绕过的三个 blocker（SSO 全归 Logto A2 重构时发现），固化方式各不同：
+
+1. **M2M Management API `all` scope 缺失** → **patch 0011**(alteration，源 `packages/schemas/alterations/`，生产 `pnpm -r build` 经 `build:alterations` 编译到 `alterations-js/`，部署跑 `logto db alteration deploy` 应用；幂等覆盖 default+admin tenant 所有 management API resource)。
+2. **connector 未 link**（connector-factories=[]，SSO connector 不可用）→ **`docker/Dockerfile.winamz` 补 `RUN pnpm cli connector link -p .`**(对齐 logto 官方 Dockerfile，非 patch —— Dockerfile.winamz 本就是本仓文件)。
+3. **@logto/experience 未 build** → **无需固化**：`pnpm -r build` 本就 build experience，生产镜像已含；dev 手动跑 `node .` 不 build 才需手动 `pnpm -F @logto/experience build`，纯 dev 临时问题。
 
 ---
 

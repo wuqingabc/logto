@@ -23,6 +23,11 @@ RUN corepack enable && corepack prepare pnpm@10.33.2 --activate && \
     pnpm install --frozen-lockfile=false
 RUN pnpm prepack && pnpm -r build
 
+# Add official connectors —— 对齐 logto 官方 Dockerfile(line 31):把 connector packages
+# link 到 packages/core/connectors/,否则 connector-factories=[] → SSO 等 connector 全不可用。
+# 之前 winamz 镜像漏这步,dev 实例靠手动 symlink 临时绕过(见 ADR-013 / A2 交接文档)。
+RUN pnpm cli connector link -p .
+
 # Runtime stage
 FROM node:22-alpine AS runtime
 RUN apk add --no-cache tini
