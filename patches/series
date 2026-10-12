@@ -9,3 +9,4 @@
 0009-feat-silent-grant-endpoint-for-trusted-launcher-to-p.patch
 0010-feat-winamz-seed-gap-alteration-ensure-Management-AP.patch
 0011-fix-winamz-secure-session-bridge-and-migrate-extensi.patch
+0012-fix-winamz-declare-pinned-provider-session-cookie-ru.patch
