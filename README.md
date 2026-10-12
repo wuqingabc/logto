@@ -9,13 +9,13 @@ Logto OIDC 服务的 WinAMZ 部署 wrapper（Patch Stack 模式）。
 bash scripts/patch-init.sh
 
 # 2. 应用 patches + 构建镜像
-WINAMZ_BUILD_N=1 bash scripts/build-image.sh
+WINAMZ_BUILD_N=3 bash scripts/build-image.sh
 
 # 3. 启动
 docker compose up -d
 ```
 
-当前版本：官方 Logto **v1.44.0**，WinAMZ 镜像 **v1.44.0-winamz.1**，使用 Node 22 和官方冻结依赖锁。
+当前版本：官方 Logto **v1.44.0**，WinAMZ 镜像 **v1.44.0-winamz.3**，使用 Node 22 和官方冻结依赖锁。
 
 旧生产库存在自定义迁移时间戳覆盖官方迁移的历史问题。升级前必须完成数据库副本演练，执行 [迁移与恢复流程](scripts/upgrade144/README.md)，不能直接启动新镜像。
 

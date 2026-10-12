@@ -10,3 +10,4 @@
 0010-feat-winamz-seed-gap-alteration-ensure-Management-AP.patch
 0011-fix-winamz-secure-session-bridge-and-migrate-extensi.patch
 0012-fix-winamz-declare-pinned-provider-session-cookie-ru.patch
+0013-fix-winamz-load-extension-migrations-after-CLI-alter.patch

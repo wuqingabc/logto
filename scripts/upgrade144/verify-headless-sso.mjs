@@ -198,7 +198,10 @@ try {
     refresh_token: loginTokens.refresh_token,
     organization_id: config.organizationId,
     resource: audience,
-    scope: scope.replace(/\boffline_access\b/g, '').trim(),
+    scope: scope
+      .split(/\s+/)
+      .filter((value) => value !== 'offline_access')
+      .join(' '),
   });
   const orgClaims = checkAccess(orgTokens.access_token);
   assert.equal(orgClaims.organization_id, config.organizationId);

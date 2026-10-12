@@ -4,7 +4,7 @@ services:
   logto:
     # 自构建镜像（patch stack 模式，详见 ADR-013）
     # 构建：bash scripts/build-image.sh
-    image: ${LOGTO_IMAGE:-winamz/logto:v1.44.0-winamz.1}
+    image: ${LOGTO_IMAGE:-winamz/logto:v1.44.0-winamz.3}
     depends_on:
       postgres:
         condition: service_healthy

@@ -27,10 +27,10 @@
 
 ## Tasks
 
-- [ ] 1. Inventory production versions, DB alteration history, client/callback configurations and custom patches; save old image/config metadata and baseline auth health.
-- [ ] 2. Run standard patch-rebase onto official1.44.0; resolve conflicts preserving new upstream logic, archive old patches, export replayable active patches and pin pristine official gitlink.
-- [ ] 3. Add failing security/session tests; adapt silent-grant validation/session API and run focused tests against actual new dependency runtime.
-- [ ] 4. Adapt custom agent APIs/console/schema alterations for upstream types and user-ID expansion; verify agent/grant authorization and build all matching assets.
+- [x] 1. Inventory production versions, DB alteration history, client/callback configurations and custom patches; save old image/config metadata and baseline auth health.
+- [x] 2. Run standard patch-rebase onto official1.44.0; resolve conflicts preserving new upstream logic, archive old patches, export replayable active patches and pin pristine official gitlink.
+- [x] 3. Add failing security/session tests; adapt silent-grant validation/session API and run focused tests against actual new dependency runtime.
+- [x] 4. Adapt custom agent APIs/console/schema alterations for upstream types and user-ID expansion; verify agent/grant authorization and build all matching assets.
 - [ ] 5. Commit/push Gitee and build versioned Linux image from frozen dependencies; verify source labels and import image to production host.
 - [ ] 6. Restore production DB into isolated staging, deploy all alterations, verify schema/history/identity invariants and native OIDC/SSO/management routes against the final image.
 - [ ] 7. Pause writers, take fresh DB/config backup, deploy proven alterations and matching image, restart writers after Logto health checks.
@@ -40,6 +40,6 @@
 
 - Source workflow: `bash scripts/patch-rebase.sh v1.44.0`, then `bash scripts/patch-apply.sh` from clean official pin.
 - Build workflow: `WINAMZ_BUILD_N=0 bash scripts/build-image.sh`; Dockerfile must use the official supported toolchain, frozen lockfile and source revision labels.
-- CLI alterations: final-image `pnpm cli db alteration deploy` against isolated DB first; use the CLI's actual options after inspecting its help. Record pending/history and database identity/FK invariants.
+- CLI alterations: final-image `node packages/cli/bin/logto.js database alteration deploy 1.44.0` against isolated DB first; use the CLI's actual options after inspecting its help. Record pending/history and database identity/FK invariants.
 - Auth tests own `packages/core/src/routes/winamz/silent-grant*`; independent agent compatibility owns other custom WinAMZ routes/console/schema files. Root owns wrapper scripts/Dockerfile/series and deployment fixtures.
 - Runtime smoke scripts must avoid console printing credentials, persist restricted fixture inputs, assert real redirects/cookies/token responses and clean their own identities only.

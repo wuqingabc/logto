@@ -14,6 +14,7 @@ sudo -u postgres pg_dump -Fc -d logto > "$backup_dir/preliminary.dump"
 sudo -u postgres pg_restore --list < "$backup_dir/preliminary.dump" > "$backup_dir/preliminary.list"
 sudo -u postgres createdb -O logto logto_upgrade_144
 sudo -u postgres pg_restore --exit-on-error -d logto_upgrade_144 < "$backup_dir/preliminary.dump"
+sudo -u postgres psql -X -d logto_upgrade_144 < "$script_dir/initialize-clone-roles.sql" > "$backup_dir/clone-roles-init.log" 2>&1
 sudo -u postgres psql -X -d logto_upgrade_144 < "$script_dir/invariants.sql" > "$backup_dir/clone-before.txt"
 sha256sum "$backup_dir/preliminary.dump" > "$backup_dir/preliminary.dump.sha256"
 echo "Clone restored; private evidence in $backup_dir. Preliminary snapshot is not a downtime rollback backup."

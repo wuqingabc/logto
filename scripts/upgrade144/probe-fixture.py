@@ -24,7 +24,9 @@ def check(value):
 
 def run(args, data=None):
     result = subprocess.run(args, input=data, universal_newlines=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    check(result.returncode == 0)
+    if result.returncode != 0:
+        write_private(BASE / 'probe-fixture-error.log', result.stderr)
+        raise RuntimeError('private diagnostic saved')
     return result.stdout.strip()
 
 
@@ -57,7 +59,7 @@ def app_config(client_id):
 
 try:
     check(os.geteuid() == 0 and str(BASE).startswith('/srv/winamz/backups/logto144-'))
-    check(ACTION in ['prepare', 'setup', 'cleanup'])
+    check(ACTION in ['prepare', 'setup', 'legacy-setup', 'record-session', 'verify-session', 'cleanup'])
     check(sql('select current_database()') == DB)
     BASE.mkdir(mode=0o700, parents=True, exist_ok=True)
     probe_path = BASE / 'probe.json'
@@ -83,10 +85,11 @@ process.stdout.write(hash);})().catch(()=>process.exit(1));"""
         check(password_hash.startswith('$argon2i$v=19$m=8192,t=8,p=1$'))
         suffix = secrets.token_hex(8)
         ids = {key: 'l144p' + secrets.token_hex(8) for key in ['user', 'org', 'role', 'orgRole', 'userRole']}
+        ids['user'] = 'l144' + secrets.token_hex(4)
         username = 'l144_probe_' + suffix
         base_scopes = 'openid profile email offline_access urn:logto:scope:organizations urn:logto:scope:organization_roles'
         STAGE = 'API scope lookup'
-        api_scopes = sql("select coalesce(string_agg(s.name,' ' order by s.name),'') from scopes s join resources r on r.id=s.resource_id and r.tenant_id=s.tenant_id where r.tenant_id='default' and r.indicator='https://api.winamz.com'")
+        api_scopes = sql("select coalesce(min(s.name),'') from scopes s join resources r on r.id=s.resource_id and r.tenant_id=s.tenant_id where r.tenant_id='default' and r.indicator='https://api.winamz.com'")
         config = dict(endpoint='http://127.0.0.1:3192', clientId=client['clientId'],
                       clientSecret=client['clientSecret'], redirectUri=client['redirectUris'][0],
                       username=username, password=password, organizationId=ids['org'],
@@ -118,7 +121,8 @@ process.stdout.write(hash);})().catch(()=>process.exit(1));"""
         config = json.loads(probe_path.read_text())
         check(fixture['database'] == DB)
         ids = fixture['ids']
-        check(all(len(value) == 21 and value.startswith('l144p') for value in ids.values()))
+        check(len(ids['user']) == 12 and ids['user'].startswith('l144'))
+        check(all(len(value) == 21 and value.startswith('l144p') for key, value in ids.items() if key != 'user'))
         check(fixture['username'].startswith('l144_probe_') and config['username'] == fixture['username'])
         user, org, role, org_role, user_role = [quote(ids[key]) for key in ['user', 'org', 'role', 'orgRole', 'userRole']]
         marker, username = quote(fixture['marker']), quote(fixture['username'])
@@ -130,11 +134,12 @@ process.stdout.write(hash);})().catch(()=>process.exit(1));"""
  or exists(select 1 from roles where id=%s and (tenant_id<>'default' or name<>%s))
  or exists(select 1 from organization_roles where id=%s and (tenant_id<>'default' or name<>%s))
  then raise exception 'fixture collision'; end if; end $$;""" % (user, username, org, marker, role, marker, org_role, marker)
-        if ACTION == 'setup':
-            check((BASE / 'clone-schema-gates.txt').is_file() and (BASE / 'clone-after.txt').is_file())
+        if ACTION in ['setup', 'legacy-setup']:
+            if ACTION == 'setup':
+                check((BASE / 'clone-schema-gates.txt').is_file() and (BASE / 'clone-after.txt').is_file())
             body = """
-insert into users(tenant_id,id,username,password_encrypted,password_encryption_method,password_updated_at,name)
- values('default',%s,%s,%s,'Argon2i',now(),%s) on conflict(id) do nothing;
+insert into users(tenant_id,id,username,password_encrypted,password_encryption_method,name)
+ values('default',%s,%s,%s,'Argon2i',%s) on conflict(id) do nothing;
 insert into organizations(tenant_id,id,name) values('default',%s,%s) on conflict(id) do nothing;
 insert into organization_user_relations values('default',%s,%s) on conflict do nothing;
 insert into roles(tenant_id,id,name,description) values('default',%s,%s,'Isolated clone runtime probe') on conflict(id) do nothing;
@@ -153,6 +158,30 @@ insert into application_access_control_user_relations(tenant_id,application_id,u
 """ % (user, username, quote(fixture['passwordHash']), marker, org, marker, org, user,
        role, marker, user_role, user, role, role, role, org_role, marker, org, org_role, user,
        org_role, org_role, user, quote(config['clientId']), quote(config['ssoClientId']))
+            if ACTION == 'legacy-setup':
+                body = body[:body.index('insert into application_access_control_user_relations')]
+        elif ACTION in ['record-session', 'verify-session']:
+            snapshot_path = BASE / 'legacy-sso.json'
+            check(snapshot_path.is_file() and stat.S_IMODE(snapshot_path.stat().st_mode) == 0o600)
+            snapshot = json.loads(snapshot_path.read_text())
+            sessions = json.loads(sql("select coalesce(json_agg(json_build_object('id',id,'payload',payload,'expiresAt',expires_at)),'[]'::json) from oidc_model_instances where tenant_id='default' and model_name='Session' and payload->>'accountId'=%s" % user))
+            if ACTION == 'record-session':
+                cookie_values = {value.split('=', 1)[1] for value in snapshot['cookies']}
+                sessions = [session for session in sessions if session['id'] in cookie_values]
+            else:
+                sessions = [session for session in sessions if session['payload'].get('uid') == snapshot['serverSession']['payload']['uid']]
+            check(len(sessions) == 1)
+            if ACTION == 'record-session':
+                snapshot['serverSession'] = sessions[0]
+                write_private(snapshot_path, json.dumps(snapshot) + '\n')
+                print('PASS legacy server session authentication context saved privately')
+            else:
+                original = snapshot['serverSession']['payload']
+                current = sessions[0]['payload']
+                for key in ['uid', 'accountId', 'loginTs', 'amr', 'acr', 'transient']:
+                    check(current.get(key) == original.get(key))
+                print('PASS original legacy session authentication time and MFA context preserved')
+            sys.exit(0)
         else:
             body = """delete from oidc_model_instances where tenant_id='default' and payload->>'accountId'=%s;
 delete from users where tenant_id='default' and id=%s and username=%s;

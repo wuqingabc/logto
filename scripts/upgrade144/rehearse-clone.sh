@@ -17,6 +17,7 @@ sudo -u postgres psql -X -d logto_upgrade_144 -v expected_database=logto_upgrade
 # `node` explicit entrypoint bypasses app startup and automatic seeding.
 docker run --rm --network host --add-host host.docker.internal:host-gateway --env-file "$backup_dir/clone.env" --entrypoint node "$image" packages/cli/bin/logto.js database alteration --help > "$backup_dir/clone-cli-help.txt" 2>&1
 docker run --rm --network host --add-host host.docker.internal:host-gateway --env-file "$backup_dir/clone.env" --entrypoint node "$image" packages/cli/bin/logto.js database alteration deploy 1.44.0 > "$backup_dir/clone-alteration.log" 2>&1
+sudo -u postgres psql -X -d logto_upgrade_144 < "$script_dir/finalize-clone-permissions.sql" > "$backup_dir/clone-permissions-finalize.log" 2>&1
 sudo -u postgres psql -X -d logto_upgrade_144 < "$script_dir/invariants.sql" > "$backup_dir/clone-after.txt"
 python3 "$script_dir/compare-invariants.py" "$backup_dir/clone-before.txt" "$backup_dir/clone-after.txt"
 sudo -u postgres psql -X -d logto_upgrade_144 < "$script_dir/schema-gates.sql" > "$backup_dir/clone-schema-gates.txt"

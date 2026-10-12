@@ -14,6 +14,9 @@ COPY . /app/
 RUN pnpm install --offline --frozen-lockfile
 RUN pnpm -r build
 RUN pnpm cli connector link -p .
+# The CLI relocates alterations into its own package before loading them.
+# Check the same layout so migration imports cannot pass a build but fail at deploy.
+RUN node packages/schemas/scripts/check-winamz-alteration-packaging.mjs
 
 FROM ${NODE_IMAGE} AS runtime
 ARG APK_MIRROR=https://mirrors.aliyun.com/alpine
