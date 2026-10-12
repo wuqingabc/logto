@@ -1,9 +1,10 @@
 # syntax=docker/dockerfile:1.7
 ARG NODE_IMAGE=node:22-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402
 FROM ${NODE_IMAGE} AS dependencies
+ARG APK_MIRROR=https://mirrors.aliyun.com/alpine
 WORKDIR /app
 ENV CI=true PUPPETEER_SKIP_DOWNLOAD=true NPM_CONFIG_REGISTRY=https://registry.npmmirror.com
-RUN sed -i 's|dl-cdn.alpinelinux.org|mirrors.aliyun.com|g' /etc/apk/repositories && apk add --no-cache python3 make g++ git rsync tini
+RUN sed -i "s|https://dl-cdn.alpinelinux.org/alpine|${APK_MIRROR}|g" /etc/apk/repositories && apk add --no-cache python3 make g++ git rsync tini
 RUN npm install --global pnpm@10.33.2
 COPY .deps/ /app/
 RUN --mount=type=cache,id=winamz-logto144-pnpm,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile
@@ -14,7 +15,8 @@ RUN pnpm -r build
 RUN pnpm cli connector link -p .
 
 FROM ${NODE_IMAGE} AS runtime
-RUN sed -i 's|dl-cdn.alpinelinux.org|mirrors.aliyun.com|g' /etc/apk/repositories && apk add --no-cache tini
+ARG APK_MIRROR=https://mirrors.aliyun.com/alpine
+RUN sed -i "s|https://dl-cdn.alpinelinux.org/alpine|${APK_MIRROR}|g" /etc/apk/repositories && apk add --no-cache tini
 WORKDIR /app
 COPY --from=builder /app /app
 ARG UPSTREAM_VERSION=v1.44.0
