@@ -54,3 +54,40 @@ SSO fixture stage has stopped; preserve the original four-user baseline separate
 4. Start candidate and verify health, discovery/JWKS, management client credentials, browser/desktop redirects, silent grant/custom routes and existing session refresh. Compare issuer/audience/callback behavior. Restore writers only after these gates pass.
 5. Any migration/schema/identity failure keeps writers paused. Preserve failed database/logs for inspection. Restore the **final paused dump into a separate replacement database**, verify baseline invariants and old-app compatibility, then point the original image/container configuration at that restored database (or recreate `logto` from final dump under an explicit recovery operation). Start original image and smoke test before resuming writers. Do not start the old image against the partially migrated database without proof of compatibility, and do not run stock rollback as a substitute for exact data restoration.
 6. Once upgraded writes are allowed, restoring a pre-upgrade dump loses those writes. A later rollback requires an explicit reconciliation decision; do not silently restore the earlier snapshot.
+
+### Prepared production commands
+
+The final candidate is `winamz/logto:v1.44.0-winamz.3`, image
+`sha256:24686c37151fc6700f5d2726158480060148e662eac0ea68812a1fc61509b44b`.
+Its build includes the real CLI alteration-copy/import regression gate. All thirteen
+patches replay from the pristine official pin to the reviewed source tree.
+
+Stage this whole script directory together. `production-upgrade.sh` requires an
+immutable image approval file from successful clone migration and SSO acceptance.
+It installs temporary auth/console nginx fences permitting only localhost, stops
+Core and Logto, and leaves both stopped after migration. Mailsac preserves incoming
+mail; Chatwoot stays running and deferred forwarding catches up after Core resumes.
+Existing production environment backup remains untouched; only the
+private `production-migration.env` uses the verified database listener `172.17.0.1`.
+
+```sh
+bash production-upgrade.sh winamz/logto:v1.44.0-winamz.3
+release=$(cat /srv/winamz/backups/logto144-20261012/production-release-active.txt)
+bash activate-production.sh
+python3 verify-production.py "$release"
+bash production-resume.sh "$release"
+```
+
+Activation starts only the matching Logto image under the ingress fence. Local
+acceptance uses TLS with the real issuer, requires unchanged public signing keys,
+checks Core's actual M2M credentials and Management/WinAMZ API reads, rejects
+anonymous/M2M silent grants, and checks desktop CORS. Legacy user refresh, cookie,
+authentication context, separate-app SSO, logout and fresh login are verified on
+the migrated production clone first. Resume writes `writers-resumed` before any
+public ingress or Core writer returns. Verify public discovery, Core health and
+mail worker status after resuming.
+
+On failure before resume, `production-rollback.sh "$release"` restores the proven
+final dump and original image/config while retaining the failed database and
+ingress fence. Verify the restored old service locally before reopening ingress;
+the upgraded-only smoke script must not be used as an old-version acceptance gate.

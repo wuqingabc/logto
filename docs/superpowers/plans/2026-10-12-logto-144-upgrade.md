@@ -31,7 +31,7 @@
 - [x] 2. Run standard patch-rebase onto official1.44.0; resolve conflicts preserving new upstream logic, archive old patches, export replayable active patches and pin pristine official gitlink.
 - [x] 3. Add failing security/session tests; adapt silent-grant validation/session API and run focused tests against actual new dependency runtime.
 - [x] 4. Adapt custom agent APIs/console/schema alterations for upstream types and user-ID expansion; verify agent/grant authorization and build all matching assets.
-- [ ] 5. Commit/push Gitee and build versioned Linux image from frozen dependencies; verify source labels and import image to production host.
+- [x] 5. Commit/push Gitee and build versioned Linux image from frozen dependencies; verify source labels and import image to production host.
 - [ ] 6. Restore production DB into isolated staging, deploy all alterations, verify schema/history/identity invariants and native OIDC/SSO/management routes against the final image.
 - [ ] 7. Pause writers, take fresh DB/config backup, deploy proven alterations and matching image, restart writers after Logto health checks.
 - [ ] 8. Run public OIDC/login/refresh/logout, Core/Connect integration and tenant isolation acceptance; remove temporary fixtures and record backup/recovery evidence.

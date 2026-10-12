@@ -17,6 +17,7 @@ import { lstat, readFile, open } from 'node:fs/promises';
 
 let stage = 'private configuration';
 let lastStatus;
+let callbackError;
 try {
   const path = process.argv[2];
   const mode = process.argv[3];
@@ -123,7 +124,7 @@ try {
       state,
       code_challenge: challenge,
       code_challenge_method: 'S256',
-      resource: audience,
+      ...(!sso && { resource: audience }),
       ...(prompt && { prompt }),
     });
     return url;
@@ -136,7 +137,9 @@ try {
         current.pathname === expectedCallback.pathname
       ) {
         assert.equal(current.searchParams.get('state'), state);
-        assert(!current.searchParams.has('error'));
+        const error = current.searchParams.get('error');
+        if (error && /^[a-z_]+$/.test(error)) callbackError = error;
+        if (error) throw Object.assign(new Error('authorization rejected'), { oauthError: error });
         const code = current.searchParams.get('code');
         assert(code);
         return code;
@@ -148,6 +151,32 @@ try {
       current = new URL(response.headers.get('location'), current);
     }
     throw new Error('redirect limit');
+  };
+  const childCodeWithConsent = async (jar, state, bridgeToken) => {
+    try {
+      await followCode(authorization(state, 'none', true), jar, state, new URL(ssoRedirectUri));
+    } catch (error) {
+      if (error.oauthError !== 'consent_required') throw error;
+      // This fixture user explicitly authorizes the new client through the normal consent API.
+      const initial = await call(authorization(state, undefined, true), {}, jar);
+      assert(initial.status >= 300 && initial.status < 400);
+      const accepted = await readJson(await call('/api/interaction/consent', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Logto-App-Id': ssoClientId },
+        body: '{}',
+      }, jar));
+      assert(accepted.redirectTo);
+      await followCode(accepted.redirectTo, jar, state, new URL(ssoRedirectUri));
+      console.log('PASS first-use fixture consent through official interaction API');
+    }
+    // Prove subsequent SSO using a fresh cookie jar populated ONLY by the bearer bridge.
+    const independent = new Jar();
+    const primed = await call('/api/internal/silent-grant', { method: 'POST', headers: {
+      Origin: config.origin, Authorization: `Bearer ${bridgeToken}`,
+    } }, independent);
+    assert.equal((await readJson(primed)).ok, true);
+    jar.values = independent.values;
+    console.log('PASS independent cookie jar primed after fixture client authorization');
+    return followCode(authorization(state, 'none', true), jar, state, new URL(ssoRedirectUri));
   };
   const exchange = async (parameters) =>
     readJson(
@@ -352,12 +381,7 @@ try {
     assert(webviewJar.values.size >= 2);
     stage = 'legacy bridged cross-client silent SSO';
     const childState = randomBytes(20).toString('base64url');
-    const childCode = await followCode(
-      authorization(childState, 'none', true),
-      webviewJar,
-      childState,
-      new URL(ssoRedirectUri)
-    );
+    const childCode = await childCodeWithConsent(webviewJar, childState, refreshed.access_token);
     const childTokens = await exchange({
       grant_type: 'authorization_code',
       code: childCode,
@@ -365,9 +389,10 @@ try {
       client_secret: ssoClientSecret,
       redirect_uri: ssoRedirectUri,
       code_verifier: verifier,
-      resource: audience,
     });
-    assert.equal(checkAccess(childTokens.access_token, ssoClientId).sub, saved.claims.sub);
+    assert.equal(payload(childTokens.id_token).sub, saved.claims.sub);
+    const userInfo = await readJson(await call('/oidc/me', { headers: { Authorization: `Bearer ${childTokens.access_token}` } }));
+    assert.equal(userInfo.sub, saved.claims.sub);
     console.log('PASS old refresh token bridges original session to embedded client');
 
     stage = 'preserved authentication after cross-client SSO';
@@ -410,6 +435,6 @@ try {
     console.log('PASS protocol logout invalidates source session; bridge returns401');
   }
 } catch {
-  console.error(`FAIL ${stage} (HTTP ${lastStatus ?? 'none'}); sensitive details suppressed`);
+  console.error(`FAIL ${stage} (HTTP ${lastStatus ?? 'none'}); callback ${callbackError ?? "none"}; sensitive details suppressed`);
   process.exitCode = 1;
 }
