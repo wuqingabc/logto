@@ -3,6 +3,7 @@
 # Stops Logto, proves the final backup, migrates and verifies; leaves app stopped.
 set -euo pipefail
 umask 077
+[[ -x /ewomail/nginx/sbin/nginx ]] || { echo 'Expected production nginx binary missing' >&2; exit 1; }
 image=${1:?Usage: production-upgrade.sh APPROVED_IMAGE [BACKUP_DIR]}
 backup_dir=${2:-/srv/winamz/backups/logto144-20261012}
 script_dir=$(cd -- "$(dirname -- "$0")" && pwd)
@@ -38,8 +39,8 @@ printf '%s\n' "$proof_db" > "$release/restoreproof-database.txt"
 printf '%s\n' "$release" > "$backup_dir/production-release-active.txt"
 # A failure after this point deliberately keeps Logto stopped for inspection.
 python3 "$script_dir/production-fence.py" install "$release"
-nginx -t > "$release/nginx-fence-test.log" 2>&1
-nginx -s reload
+/ewomail/nginx/sbin/nginx -t > "$release/nginx-fence-test.log" 2>&1
+/ewomail/nginx/sbin/nginx -s reload
 for host in auth.winamz.com console.winamz.com; do
   fenced=false
   for attempt in {1..10}; do
