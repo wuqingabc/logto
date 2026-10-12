@@ -1,7 +1,7 @@
-From 4d793732781d600c86a8bb5c11595be8d5630f11 Mon Sep 17 00:00:00 2001
+From b29c4a98dc4d660013175a6a90e2cfe89940ff38 Mon Sep 17 00:00:00 2001
 From: root <root@openclaw-wuqing.winamz.com>
 Date: Sat, 14 Mar 2026 01:55:39 +0000
-Subject: [PATCH 6/9] =?UTF-8?q?docs:=20=E6=B7=BB=E5=8A=A0=20WinAMZ=20?=
+Subject: [PATCH 06/11] =?UTF-8?q?docs:=20=E6=B7=BB=E5=8A=A0=20WinAMZ=20?=
  =?UTF-8?q?=E4=B8=93=E7=94=A8=E9=85=8D=E7=BD=AE=E8=AF=B4=E6=98=8E=EF=BC=88?=
  =?UTF-8?q?=E7=AB=AF=E5=8F=A3=204000/4001=20+=20=E5=90=AF=E5=8A=A8?=
  =?UTF-8?q?=E6=AD=A5=E9=AA=A4=20+=20Admin=20Console=20=E9=85=8D=E7=BD=AE?=
@@ -122,5 +122,5 @@ index f41d03d1d..5bcbf769c 100644
    <a href="https://logto.io/?utm_source=github&utm_medium=readme" target="_blank" align="center" alt="Go to Logto website">
      <picture>
 -- 
-2.54.0
+2.50.1 (Apple Git-155)
 

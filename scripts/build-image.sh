@@ -10,7 +10,14 @@ echo "==> applying patches..."
 bash "$(dirname "$0")/patch-apply.sh"
 
 echo "==> building winamz/$IMAGE_NAME:$TAG"
-docker build -f "$DOCKERFILE" -t "winamz/$IMAGE_NAME:$TAG" "$UPSTREAM_DIR"
+context=$(mktemp -d "${TMPDIR:-/tmp}/winamz-logto-build.XXXXXXXX")
+trap 'python3 -c "import shutil,sys; shutil.rmtree(sys.argv[1])" "$context"' EXIT
+bash "$(dirname "$0")/prepare-build-context.sh" "$context"
+docker build -f "$context/Dockerfile.winamz" \
+  --build-arg "UPSTREAM_VERSION=$UPSTREAM_VERSION" \
+  --build-arg "WINAMZ_BUILD_N=$WINAMZ_BUILD_N" \
+  --build-arg "WINAMZ_REVISION=$(git rev-parse HEAD)" \
+  -t "winamz/$IMAGE_NAME:$TAG" "$context"
 
 echo ""
 echo "✓ built: winamz/$IMAGE_NAME:$TAG"

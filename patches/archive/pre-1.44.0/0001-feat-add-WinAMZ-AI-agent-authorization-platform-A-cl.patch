@@ -1,0 +1,2484 @@
+From e0d3e2d1b8aa0ce16a88c1079b97d71bf81df9c3 Mon Sep 17 00:00:00 2001
+From: wuqingabc <wuqingabc@hotmail.com>
+Date: Wed, 11 Mar 2026 15:01:12 +0800
+Subject: [PATCH 1/9] feat: add WinAMZ AI agent authorization platform (A-class
+ new files)
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+New files added — zero conflict with upstream Logto updates:
+
+Backend:
+- packages/core/src/routes/winamz/ — Agent CRUD, grant management, audit log routes
+- packages/schemas/src/winamz.ts — Type definitions
+- packages/schemas/src/migrations/winamz-001-create-tables.ts — DB migration
+
+Console UI:
+- packages/console/src/pages/winamz/Agents.tsx — Agent registry page
+- packages/console/src/pages/winamz/Grants.tsx — Delegation grants + Kill Switch page
+- packages/console/src/pages/winamz/Audit.tsx — Audit log page
+- packages/console/src/hooks/use-console-routes/routes/winamz.tsx — Route definitions
+
+Docs:
+- docs/prd.md — Product requirements document
+- docs/upgrade-guide.md — Logto upstream upgrade guide
+- docs/integration/ — Downstream application integration guides
+
+Features:
+- F1: AI Agent Registry (personal + org agents, status lifecycle)
+- F2: Personal Agent Delegation (grant creation/management)
+- F3: Kill Switch (revoke grants, suspend agents)
+- F4: Audit Logs (event recording and querying)
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+---
+ docs/integration/audit-log.md                 | 126 ++++++
+ docs/integration/kill-switch.md               |  94 +++++
+ docs/integration/org-agent.md                 | 116 ++++++
+ docs/integration/overview.md                  |  44 +++
+ docs/integration/personal-agent.md            | 119 ++++++
+ docs/prd.md                                   | 172 ++++++++
+ docs/upgrade-guide.md                         |  83 ++++
+ .../use-console-routes/routes/winamz.tsx      |  27 ++
+ packages/console/src/pages/winamz/Agents.tsx  | 203 ++++++++++
+ packages/console/src/pages/winamz/Audit.tsx   | 174 +++++++++
+ packages/console/src/pages/winamz/Grants.tsx  | 181 +++++++++
+ packages/core/src/routes/winamz/agents.ts     | 367 ++++++++++++++++++
+ packages/core/src/routes/winamz/audit.ts      | 162 ++++++++
+ packages/core/src/routes/winamz/grants.ts     | 297 ++++++++++++++
+ packages/core/src/routes/winamz/index.ts      |  20 +
+ .../migrations/winamz-001-create-tables.ts    |  65 ++++
+ packages/schemas/src/winamz.ts                |  58 +++
+ 17 files changed, 2308 insertions(+)
+ create mode 100644 docs/integration/audit-log.md
+ create mode 100644 docs/integration/kill-switch.md
+ create mode 100644 docs/integration/org-agent.md
+ create mode 100644 docs/integration/overview.md
+ create mode 100644 docs/integration/personal-agent.md
+ create mode 100644 docs/prd.md
+ create mode 100644 docs/upgrade-guide.md
+ create mode 100644 packages/console/src/hooks/use-console-routes/routes/winamz.tsx
+ create mode 100644 packages/console/src/pages/winamz/Agents.tsx
+ create mode 100644 packages/console/src/pages/winamz/Audit.tsx
+ create mode 100644 packages/console/src/pages/winamz/Grants.tsx
+ create mode 100644 packages/core/src/routes/winamz/agents.ts
+ create mode 100644 packages/core/src/routes/winamz/audit.ts
+ create mode 100644 packages/core/src/routes/winamz/grants.ts
+ create mode 100644 packages/core/src/routes/winamz/index.ts
+ create mode 100644 packages/schemas/src/migrations/winamz-001-create-tables.ts
+ create mode 100644 packages/schemas/src/winamz.ts
+
+diff --git a/docs/integration/audit-log.md b/docs/integration/audit-log.md
+new file mode 100644
+index 000000000..237a38efb
+--- /dev/null
++++ b/docs/integration/audit-log.md
+@@ -0,0 +1,126 @@
++# Audit Log API Reference
++
++## Query Audit Logs
++
++```bash
++# Query all operations by a specific agent
++GET /api/winamz/audit?agent_id={agentId}&from=2026-01-01&to=2026-12-31
++
++# Query all agents that have acted on behalf of a specific user
++GET /api/winamz/audit?user_id={userId}&event_type=agent_action
++
++# Query all Kill Switch operations for an organization
++GET /api/winamz/audit?org_id={orgId}&event_type=grant_revoked
++
++# Pagination
++GET /api/winamz/audit?page=1&page_size=20
++```
++
++**Query Parameters:**
++
++| Parameter | Type | Description |
++|-----------|------|-------------|
++| `agent_id` | string | Filter by agent ID |
++| `user_id` | string | Filter by user ID |
++| `org_id` | string | Filter by organization ID |
++| `event_type` | string | Filter by event type |
++| `from` | ISO 8601 date | Start time |
++| `to` | ISO 8601 date | End time |
++| `page` | number | Page number (default: 1) |
++| `page_size` | number | Page size (default: 20, max: 100) |
++
++**Response Example:**
++```json
++{
++  "total": 42,
++  "data": [
++    {
++      "id": "abc123",
++      "event_type": "agent_action",
++      "agent_id": "openclaw-agent-id",
++      "agent_name": "OpenClaw v2.1",
++      "user_id": "zhangsan-user-id",
++      "user_name": "Zhang San",
++      "org_id": "company-org-id",
++      "resource": "erp:order:PO-2026-001",
++      "metadata": { "action": "create", "amount": 5000 },
++      "created_at": "2026-03-11T09:30:00Z"
++    }
++  ]
++}
++```
++
++---
++
++## Record Audit Event
++
++Downstream applications should call this API after each agent operation to record the event.
++
++```bash
++POST /api/winamz/audit
++Authorization: Bearer $M2M_TOKEN
++Content-Type: application/json
++
++{
++  "event_type": "agent_action",
++  "agent_id": "openclaw-agent-id",
++  "user_id": "zhangsan-user-id",
++  "org_id": "company-org-id",
++  "resource": "erp:order:PO-2026-001",
++  "metadata": {
++    "action": "create",
++    "method": "POST",
++    "path": "/purchase-orders",
++    "amount": 5000,
++    "status_code": 201
++  }
++}
++```
++
++---
++
++## Event Types
++
++| Event Type | Description | Key Fields |
++|------------|-------------|------------|
++| `agent_registered` | New agent registered | `agent_id`, `org_id` |
++| `agent_approved` | Agent approved by admin | `agent_id`, `actor_id` |
++| `agent_suspended` | Agent suspended | `agent_id`, `actor_id` |
++| `grant_created` | User authorized agent | `agent_id`, `user_id` |
++| `grant_revoked` | Agent authorization revoked | `agent_id`, `user_id`, `actor_id` |
++| `agent_action` | Agent performed operation on behalf of user | `agent_id`, `user_id`, `resource` |
++| `token_issued` | Token issued to agent | `agent_id` |
++
++---
++
++## Downstream Application Integration Example
++
++```javascript
++// Audit log middleware — runs after request completes
++app.use(async (req, res, next) => {
++  await next();
++
++  if (req.isAgent && req.agentId) {
++    // Non-blocking audit log recording
++    fetch('http://localhost:4001/api/winamz/audit', {
++      method: 'POST',
++      headers: {
++        'Authorization': `Bearer ${process.env.WINAMZ_M2M_TOKEN}`,
++        'Content-Type': 'application/json',
++      },
++      body: JSON.stringify({
++        event_type: 'agent_action',
++        agent_id: req.agentId,
++        user_id: req.userId,
++        org_id: req.orgId,
++        resource: `${req.method.toLowerCase()}:${req.path}`,
++        metadata: {
++          method: req.method,
++          path: req.path,
++          status_code: res.statusCode,
++        },
++      }),
++    }).catch(console.error); // Don't let audit log failure affect business
++  }
++});
++```
+diff --git a/docs/integration/kill-switch.md b/docs/integration/kill-switch.md
+new file mode 100644
+index 000000000..88654dfb0
+--- /dev/null
++++ b/docs/integration/kill-switch.md
+@@ -0,0 +1,94 @@
++# Kill Switch API Reference
++
++## Revoke Personal Agent Authorization
++
++```bash
++# Admin invokes Kill Switch (takes effect immediately)
++curl -X POST http://localhost:4001/api/winamz/grants/{grantId}/revoke \
++  -H "Authorization: Bearer $ADMIN_M2M_TOKEN" \
++  -H "Content-Type: application/json" \
++  -d '{ "reason": "Employee resignation" }'
++```
++
++**Effects:**
++1. `winamz_agent_grants.revoked_at` is set
++2. All Logto Grants for that user on that Client are deleted
++3. Agent's Refresh Token is invalidated, cannot renew
++4. Existing Access Tokens remain valid until expiry (default 1 hour)
++   → For immediate invalidation, also call the suspend endpoint
++
++**Response:**
++```json
++{
++  "success": true,
++  "revokedAt": "2026-03-11T09:30:00Z",
++  "reason": "Employee resignation"
++}
++```
++
++---
++
++## Immediately Suspend Agent Account
++
++```bash
++# Suspend personal agent
++curl -X POST http://localhost:4001/api/winamz/agents/{agentId}/suspend \
++  -H "Authorization: Bearer $ADMIN_M2M_TOKEN"
++```
++
++**Effects:**
++- For personal agents: Logto user account set to `isSuspended=true`, all tokens immediately invalid
++- For org agents: Logto M2M application secret revoked, cannot obtain new tokens
++
++**Response:**
++```json
++{
++  "success": true,
++  "agentId": "agent-id",
++  "status": "suspended",
++  "suspendedAt": "2026-03-11T09:30:00Z"
++}
++```
++
++---
++
++## Restore Agent
++
++```bash
++# Restore a previously suspended agent
++curl -X POST http://localhost:4001/api/winamz/agents/{agentId}/restore \
++  -H "Authorization: Bearer $ADMIN_M2M_TOKEN"
++```
++
++---
++
++## Emergency Batch Operations
++
++### Revoke all agents for an organization
++
++```bash
++# Revoke all agents under an organization (emergency use)
++curl -X POST http://localhost:4001/api/winamz/agents/emergency-revoke \
++  -H "Authorization: Bearer $ADMIN_M2M_TOKEN" \
++  -H "Content-Type: application/json" \
++  -d '{ "org_id": "your-org-id", "reason": "Security incident" }'
++```
++
++### Revoke all agents for a user
++
++```bash
++# Revoke all agent authorizations for a specific user
++curl -X POST http://localhost:4001/api/winamz/grants/revoke-by-user \
++  -H "Authorization: Bearer $ADMIN_M2M_TOKEN" \
++  -H "Content-Type: application/json" \
++  -d '{ "user_id": "user-id", "reason": "Account security review" }'
++```
++
++---
++
++## Security Considerations
++
++- All Kill Switch operations are recorded in `winamz_audit_logs`
++- Admin operations require Management API M2M token authentication
++- Recommend setting short `access_token` expiry (≤ 1 hour) to reduce residual risk window
++- For high-sensitivity scenarios, consider setting `access_token` to ≤ 15 minutes
+diff --git a/docs/integration/org-agent.md b/docs/integration/org-agent.md
+new file mode 100644
+index 000000000..0f77aad54
+--- /dev/null
++++ b/docs/integration/org-agent.md
+@@ -0,0 +1,116 @@
++# Enterprise Agent Integration Guide
++
++## Scenario Description
++
++The enterprise's data analysis AI needs to periodically read data from all departments without being bound to any specific employee.
++
++---
++
++## Step 1: Register Enterprise Agent
++
++```bash
++# Call WinAMZ API to create org type agent
++curl -X POST http://localhost:4001/api/winamz/agents \
++  -H "Authorization: Bearer $ADMIN_TOKEN" \
++  -H "Content-Type: application/json" \
++  -d '{
++    "name": "DataPipeline-v1",
++    "type": "org",
++    "org_id": "your-org-id",
++    "requested_scopes": ["erp:read", "crm:read"]
++  }'
++# Returns agent_id, wait for admin to approve in Console
++```
++
++---
++
++## Step 2: Admin Approves in Console
++
++1. Open WinAMZ Admin Console: `http://localhost:4002`
++2. Navigate to **AI Agents** → **Agents**
++3. Find the pending agent, review requested scopes
++4. Click **Approve** to create associated Logto M2M application
++5. Console displays generated `client_id` and `client_secret` — save these securely
++
++---
++
++## Step 3: Get M2M Token After Approval
++
++```javascript
++// Enterprise agent uses Client Credentials to get token
++const response = await fetch('http://localhost:4001/oidc/token', {
++  method: 'POST',
++  headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
++  body: new URLSearchParams({
++    grant_type: 'client_credentials',
++    client_id: agentLogtoAppId,
++    client_secret: agentLogtoAppSecret,
++    resource: 'https://erp.winamz.com',
++    organization_id: orgId,
++    scope: 'erp:read crm:read',
++  }),
++});
++const { access_token } = await response.json();
++// token.sub = agentLogtoAppId (no act claim)
++// token.org_id = orgId
++```
++
++---
++
++## Step 4: Your Application Verifies the Token
++
++```javascript
++async function verifyOrgAgentToken(req, res, next) {
++  const token = req.headers.authorization?.replace('Bearer ', '');
++
++  const { payload } = await jwtVerify(token, JWKS, {
++    issuer: 'http://localhost:4001/oidc',
++    audience: 'https://erp.winamz.com',
++  });
++
++  // Enterprise agent: no act claim, sub is the agent application ID
++  req.agentAppId = payload.sub;
++  req.orgId = payload.org_id;
++  req.isOrgAgent = !payload.act && payload.org_id !== undefined;
++
++  next();
++}
++```
++
++---
++
++## Kill Switch: Suspending Enterprise Agent
++
++If the enterprise agent needs to be immediately stopped:
++
++```bash
++# Via WinAMZ Admin Console: AI Agents → Agents → Suspend
++# Or via API:
++curl -X POST http://localhost:4001/api/winamz/agents/{agentId}/suspend \
++  -H "Authorization: Bearer $ADMIN_TOKEN"
++```
++
++Effect:
++1. `winamz_agents.status` is set to `suspended`
++2. Associated Logto M2M application secret is revoked
++3. Agent can no longer obtain new tokens
++4. Existing access tokens expire within 1 hour
++
++---
++
++## Complete Use Case: Data Analysis AI Reads ERP Data
++
++```
++Sequence:
++DataPipeline → WinAMZ Token Endpoint: POST /oidc/token (client_credentials)
++WinAMZ → DataPipeline: Return M2M access_token
++  token.sub = "datapipeline-app-id"
++  token.org_id = "company-org-id"
++  token.scope = "erp:read crm:read"
++
++DataPipeline → ERP API: GET /reports/monthly
++  Authorization: Bearer <token>
++
++ERP API → ERP API: jwtVerify → req.agentAppId="datapipeline", req.orgId="company"
++ERP API → DataPipeline: Return report data
++```
+diff --git a/docs/integration/overview.md b/docs/integration/overview.md
+new file mode 100644
+index 000000000..369cd7f21
+--- /dev/null
++++ b/docs/integration/overview.md
+@@ -0,0 +1,44 @@
++# Integration Overview
++
++WinAMZ provides two integration scenarios for downstream applications:
++
++| Scenario | Your Application Type | Integration Method |
++|----------|-----------------------|--------------------|
++| Act on behalf of employee | Any service needing employee identity | Verify personal agent token (check `act` claim) |
++| Act on behalf of enterprise | Backend services, data pipelines | Standard M2M + org token |
++
++## Quick Start
++
++### Scenario 1: Personal Agent (OpenClaw Model)
++
++Your downstream application needs to:
++1. Accept tokens from WinAMZ OIDC (`http://localhost:4001`)
++2. Check the `act` claim to identify if it's an agent acting on behalf of a user
++3. Record agent actions in audit logs
++
++→ See [personal-agent.md](./personal-agent.md) for details
++
++### Scenario 2: Enterprise Agent
++
++Your downstream application needs to:
++1. Accept M2M tokens with `org_id` claim
++2. Verify the agent has appropriate scopes
++3. No `act` claim — the agent acts as itself
++
++→ See [org-agent.md](./org-agent.md) for details
++
++## Token Structure Comparison
++
++| Token Type | `sub` | `act.sub` | `org_id` | Who is acting? |
++|------------|-------|-----------|----------|----------------|
++| User direct | userId | (absent) | orgId | Employee themselves |
++| Personal Agent | userId | agentId | orgId | Agent acting as employee |
++| Enterprise Agent | agentAppId | (absent) | orgId | Enterprise agent as itself |
++
++## WinAMZ Service Endpoints
++
++| Service | URL | Purpose |
++|---------|-----|---------|
++| OIDC | `http://localhost:4001` | Token issuance, JWKS |
++| Admin Console | `http://localhost:4002` | Agent registration, management |
++| Management API | `http://localhost:4001/api` | WinAMZ APIs (agent CRUD, kill switch, audit) |
+diff --git a/docs/integration/personal-agent.md b/docs/integration/personal-agent.md
+new file mode 100644
+index 000000000..4f41af430
+--- /dev/null
++++ b/docs/integration/personal-agent.md
+@@ -0,0 +1,119 @@
++# Personal Agent Integration Guide
++
++## Scenario Description
++
++Employee Zhang San uses OpenClaw and wants OpenClaw to call your application (e.g., ERP system, CRM) on their behalf.
++
++---
++
++## Step 1: Register Your API Resource in WinAMZ
++
++In WinAMZ Admin Console (`http://localhost:4002`):
++1. **API Resources** → Create → Enter your API Identifier (e.g., `https://erp.winamz.com`)
++2. Create Scopes: `erp:read`, `erp:write`, `erp:admin`
++
++---
++
++## Step 2: OpenClaw Triggers Authorization Flow
++
++```javascript
++// OpenClaw initiates OAuth authorization request
++const authUrl = new URL('http://localhost:4001/oidc/auth');
++authUrl.searchParams.set('client_id', 'openclaw-app-id');
++authUrl.searchParams.set('response_type', 'code');
++authUrl.searchParams.set('redirect_uri', 'openclaw://callback');
++authUrl.searchParams.set('scope', 'openid erp:read erp:write');
++authUrl.searchParams.set('resource', 'https://erp.winamz.com');
++authUrl.searchParams.set('organization_id', orgId);
++// Guide employee to complete authorization in browser...
++```
++
++The employee will see the WinAMZ consent page showing the specific permissions OpenClaw is requesting.
++
++---
++
++## Step 3: Your ERP Verifies the Token
++
++```javascript
++// ERP backend middleware
++import { createRemoteJWKSet, jwtVerify } from 'jose';
++
++const JWKS = createRemoteJWKSet(
++  new URL('http://localhost:4001/oidc/jwks')
++);
++
++async function verifyAgentToken(req, res, next) {
++  const token = req.headers.authorization?.replace('Bearer ', '');
++
++  const { payload } = await jwtVerify(token, JWKS, {
++    issuer: 'http://localhost:4001/oidc',
++    audience: 'https://erp.winamz.com',
++  });
++
++  // Standard user token: sub is employee ID
++  // Agent token: sub is employee ID, act.sub is agent ID
++  req.userId = payload.sub;
++  req.agentId = payload.act?.sub ?? null;  // null means employee acted directly
++  req.isAgent = !!payload.act;
++
++  // Audit logs should record agentId
++  next();
++}
++```
++
++---
++
++## Step 4: Audit Log Example
++
++```javascript
++// After each agent action, call WinAMZ audit API
++await fetch('http://localhost:4001/api/winamz/audit', {
++  method: 'POST',
++  headers: { 'Authorization': `Bearer ${m2mToken}` },
++  body: JSON.stringify({
++    event_type: 'agent_action',
++    agent_id: req.agentId,
++    user_id: req.userId,
++    resource: `erp:order:${orderId}`,
++    metadata: { action: 'create', amount: 5000 }
++  })
++});
++```
++
++---
++
++## Complete Use Case: OpenClaw Submits Purchase Order for Zhang San
++
++```
++Sequence:
++OpenClaw → WinAMZ OIDC: Initiate authorization (scope: erp:write)
++WinAMZ OIDC → Zhang San: Show consent page
++Zhang San → WinAMZ OIDC: Click agree
++WinAMZ OIDC → OpenClaw: Return access_token
++  token.sub = "zhangsan-userId"
++  token.act.sub = "openclaw-agent-id"
++  token.scope = "erp:write"
++
++OpenClaw → ERP API: POST /purchase-orders
++  Authorization: Bearer <token>
++
++ERP API → ERP API: jwtVerify → req.userId="zhangsan", req.agentId="openclaw"
++ERP API → WinAMZ Audit API: Record "openclaw submitted purchase order on behalf of zhangsan"
++ERP API → OpenClaw: 201 Created
++```
++
++---
++
++## Kill Switch: Revoking Agent Authorization
++
++If the employee wants to revoke OpenClaw's authorization at any time, or an administrator needs to do so:
++
++```bash
++# Via WinAMZ Admin Console: AI Agents → Grants → Revoke
++# Or via API:
++curl -X POST http://localhost:4001/api/winamz/grants/{grantId}/revoke \
++  -H "Authorization: Bearer $ADMIN_TOKEN" \
++  -d '{ "reason": "Employee request" }'
++```
++
++Effect: OpenClaw's refresh token is invalidated immediately. Existing access tokens expire within 1 hour (configurable).
+diff --git a/docs/prd.md b/docs/prd.md
+new file mode 100644
+index 000000000..8cc09a52b
+--- /dev/null
++++ b/docs/prd.md
+@@ -0,0 +1,172 @@
++# WinAMZ Identity & AI Agent Authorization Platform — PRD
++
++## Product Name
++
++**WinAMZ Identity & AI Agent Authorization Platform**
++Based on Logto OSS Fork, focused on enterprise AI agent identity registration, delegated authorization, and security governance.
++
++---
++
++## Background
++
++This platform addresses two fundamentally different authorization models for AI agents:
++
++1. **Personal AI Agent (OpenClaw Model)**: Employee's AI persona acts on behalf of the employee. Requires user consent flow, actor token (RFC 8693), revocable delegation chain. Logto's existing M2M **does not** satisfy this scenario.
++
++2. **Enterprise AI Assistant**: Organization-level AI represents the enterprise in handling data. Logto M2M + Organization Token **mostly satisfies** this scenario.
++
++---
++
++## Core Concept Model
++
++```
++Enterprise (Organization)
++  ├── Employee (User)
++  │     └── Personal AI Agent
++  │           - Employee authorizes → actor token (RFC 8693)
++  │           - Token: { sub: userId, act: { sub: agentId }, scope: "..." }
++  │           - Employee or admin can revoke at any time
++  │
++  └── Enterprise AI Assistant (Org Agent)
++        - Admin approval required
++        - M2M token + org_id scope
++        - Token: { sub: agentAppId, org_id: orgId, scope: "..." }
++```
++
++---
++
++## Feature Modules
++
++### F1: AI Agent Registry
++
++**DB Table: `winamz_agents`**
++```sql
++CREATE TABLE winamz_agents (
++  id             VARCHAR(21) PRIMARY KEY,
++  name           VARCHAR(255) NOT NULL,
++  type           VARCHAR(20)  NOT NULL CHECK (type IN ('personal', 'org')),
++  org_id         VARCHAR(21)  NOT NULL REFERENCES organizations(id),
++  owner_user_id  VARCHAR(21)  REFERENCES users(id),
++  logto_app_id   VARCHAR(21),
++  status         VARCHAR(20)  NOT NULL DEFAULT 'pending_review',
++  requested_scopes TEXT[],
++  created_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
++  updated_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW()
++);
++```
++
++**Status Flow**: `pending_review` → `approved` / `rejected` → `suspended`
++
++### F2: Personal Agent Delegation Flow
++
++**DB Table: `winamz_agent_grants`**
++```sql
++CREATE TABLE winamz_agent_grants (
++  id             VARCHAR(21) PRIMARY KEY,
++  agent_id       VARCHAR(21) NOT NULL REFERENCES winamz_agents(id),
++  user_id        VARCHAR(21) NOT NULL REFERENCES users(id),
++  org_id         VARCHAR(21) NOT NULL REFERENCES organizations(id),
++  granted_scopes TEXT[]      NOT NULL,
++  granted_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
++  expires_at     TIMESTAMPTZ,
++  revoked_at     TIMESTAMPTZ,
++  revoked_by     VARCHAR(21)
++);
++```
++
++Token `act` claim injected via Logto JWT Customizer (zero intrusion to core code):
++```javascript
++const getCustomJwtClaims = async ({ token, context }) => {
++  if (context.winamzAgentGrant) {
++    return { act: { sub: context.winamzAgentGrant.agentId } };
++  }
++  return {};
++};
++```
++
++### F3: Kill Switch
++
++- **Personal Agent**: Update `winamz_agent_grants.revoked_at` + delete Logto Grant
++- **Enterprise Agent**: Update `winamz_agents.status='suspended'` + revoke M2M Secret
++
++### F4: Audit Log
++
++**DB Table: `winamz_audit_logs`**
++```sql
++CREATE TABLE winamz_audit_logs (
++  id          VARCHAR(21) PRIMARY KEY,
++  event_type  VARCHAR(50) NOT NULL,
++  org_id      VARCHAR(21),
++  agent_id    VARCHAR(21),
++  user_id     VARCHAR(21),
++  actor_id    VARCHAR(21),
++  resource    TEXT,
++  metadata    JSONB,
++  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
++);
++```
++
++### F5: Admin UI (Extended Logto Console)
++
++New "AI Agents" navigation section in Admin Console with three pages:
++- `/winamz/agents` — Agent registry (approve/suspend)
++- `/winamz/grants` — Delegation authorization list (Kill Switch)
++- `/winamz/audit`  — Audit log query
++
++---
++
++## Technical Roadmap
++
++| Phase | Task | Deliverable |
++|-------|------|-------------|
++| P0 | Fork + local dev environment | Running Logto fork |
++| P1 | WinAMZ DB migration + `/api/winamz/agents` CRUD | Agent registry API |
++| P2 | Personal delegation flow + JWT Customizer `act` claim | Complete delegation authorization flow |
++| P3 | Kill Switch API + audit log | Security governance capability |
++| P4 | Console UI (three admin pages) | Visual management console |
++| P5 | Integration docs + OpenClaw validation | Developer docs + end-to-end validation |
++
++---
++
++## API Reference
++
++### Agent Registry API
++
++```
++GET    /api/winamz/agents              List all agents (paginated)
++POST   /api/winamz/agents              Register new agent
++GET    /api/winamz/agents/:id          Get agent details
++PATCH  /api/winamz/agents/:id          Update agent
++DELETE /api/winamz/agents/:id          Delete agent
++POST   /api/winamz/agents/:id/approve  Approve agent registration
++POST   /api/winamz/agents/:id/suspend  Suspend agent
++```
++
++### Delegation Management API
++
++```
++GET    /api/winamz/grants              List all grants
++POST   /api/winamz/grants              Create grant
++GET    /api/winamz/grants/:id          Get grant details
++POST   /api/winamz/grants/:id/revoke   Revoke grant (Kill Switch)
++```
++
++### Audit Log API
++
++```
++GET    /api/winamz/audit               Query audit logs (paginated, filterable)
++POST   /api/winamz/audit               Record audit event
++```
++
++---
++
++## Configuration
++
++```bash
++# Database
++DATABASE_URL=postgresql://root:820518wU@localhost:5432/logto
++
++# Ports
++OIDC_PORT=4001
++ADMIN_PORT=4002
++```
+diff --git a/docs/upgrade-guide.md b/docs/upgrade-guide.md
+new file mode 100644
+index 000000000..dd8f0524d
+--- /dev/null
++++ b/docs/upgrade-guide.md
+@@ -0,0 +1,83 @@
++# Logto Upstream Upgrade Guide
++
++## Minimum Coupling Principle
++
++All modifications to Logto source code fall into two categories:
++
++### Class A: Pure new files (zero conflict on upgrade)
++
++```
++packages/core/src/routes/winamz/          ← New directory
++packages/console/src/pages/winamz/        ← New directory
++packages/schemas/src/winamz.ts            ← New file
++packages/schemas/src/migrations/winamz-*  ← New migration files
++docs/                                     ← New directory
++```
++
++### Class B: Micro-changes to existing files (managed via cherry-pick)
++
++```
++packages/core/src/routes/init.ts                            → +3 lines (mount winamz routes)
++packages/console/src/hooks/use-console-routes/index.tsx     → +5 lines (add route declarations)
++packages/console/src/containers/ConsoleContent/Sidebar/hook.tsx → +8 lines (add AI Agents menu)
++packages/phrases/src/locales/en/translation/admin-console/tabs.ts → +3 lines (add tab keys)
++packages/phrases/src/locales/en/translation/admin-console/tab-sections.ts → +1 line (add section key)
++```
++
++Class B changes are concentrated in dedicated git commits with `[winamz]` prefix, facilitating cherry-pick.
++
++---
++
++## Upgrade Procedure
++
++```bash
++# 1. Pull upstream Logto updates
++git fetch upstream
++
++# 2. Check upstream changes (assess impact on Class B files)
++git log upstream/master --oneline -20
++git diff HEAD upstream/master -- packages/core/src/routes/init.ts
++git diff HEAD upstream/master -- packages/console/src/hooks/use-console-routes/index.tsx
++git diff HEAD upstream/master -- packages/console/src/containers/ConsoleContent/Sidebar/hook.tsx
++git diff HEAD upstream/master -- packages/phrases/src/locales/en/translation/admin-console/tabs.ts
++
++# 3. If no conflicts in Class B files, rebase directly
++git rebase upstream/master
++
++# 4. If Class B files have conflicts, resolve manually and continue
++git rebase --continue
++
++# 5. Run DB migrations (new Logto version may have new migrations)
++pnpm -r build
++node packages/cli/bin/logto.js database alteration deploy latest
++
++# 6. Verify
++curl http://localhost:4001/api/status          # Logto core normal
++curl http://localhost:4001/api/winamz/agents   # WinAMZ routes normal
++```
++
++---
++
++## Version Compatibility Record
++
++| WinAMZ Version | Based on Logto Version | Class B Conflict Files | Resolution |
++|----------------|------------------------|------------------------|------------|
++| v0.1           | v1.26.0                | None                   | -          |
++
++---
++
++## Class B Commit Format
++
++All commits modifying Logto existing files use this format:
++```
++[winamz] <description>
++
++Files modified:
++- packages/core/src/routes/init.ts: mount winamz routes
++- ...
++```
++
++To cherry-pick all winamz commits after upstream rebase:
++```bash
++git log --oneline --grep="^\[winamz\]" origin/master | awk '{print $1}' | tac | xargs git cherry-pick
++```
+diff --git a/packages/console/src/hooks/use-console-routes/routes/winamz.tsx b/packages/console/src/hooks/use-console-routes/routes/winamz.tsx
+new file mode 100644
+index 000000000..748ae8f7a
+--- /dev/null
++++ b/packages/console/src/hooks/use-console-routes/routes/winamz.tsx
+@@ -0,0 +1,27 @@
++/**
++ * WinAMZ Console routes.
++ *
++ * [winamz] New file - no conflict with upstream Logto updates.
++ */
++
++import { type RouteObject } from 'react-router-dom';
++import { safeLazy } from 'react-safe-lazy';
++
++const WinamzAgents = safeLazy(async () => import('@/pages/winamz/Agents'));
++const WinamzGrants = safeLazy(async () => import('@/pages/winamz/Grants'));
++const WinamzAudit = safeLazy(async () => import('@/pages/winamz/Audit'));
++
++export const winamzAgents: RouteObject = {
++  path: 'winamz/agents',
++  element: <WinamzAgents />,
++};
++
++export const winamzGrants: RouteObject = {
++  path: 'winamz/grants',
++  element: <WinamzGrants />,
++};
++
++export const winamzAudit: RouteObject = {
++  path: 'winamz/audit',
++  element: <WinamzAudit />,
++};
+diff --git a/packages/console/src/pages/winamz/Agents.tsx b/packages/console/src/pages/winamz/Agents.tsx
+new file mode 100644
+index 000000000..812b92063
+--- /dev/null
++++ b/packages/console/src/pages/winamz/Agents.tsx
+@@ -0,0 +1,203 @@
++/**
++ * WinAMZ AI Agent Registry page.
++ * Allows admins to view, approve, suspend, and manage AI agents.
++ *
++ * [winamz] New file - no conflict with upstream Logto updates.
++ */
++
++import { useCallback, useEffect, useState } from 'react';
++import { useTranslation } from 'react-i18next';
++
++import Button from '@/ds-components/Button';
++import DynamicT from '@/ds-components/DynamicT';
++import Search from '@/ds-components/Search';
++import Table from '@/ds-components/Table';
++import Tag from '@/ds-components/Tag';
++import useApi from '@/hooks/use-api';
++
++type Agent = {
++  id: string;
++  name: string;
++  type: 'personal' | 'org';
++  orgId: string;
++  ownerUserId?: string | null;
++  status: 'pending_review' | 'approved' | 'rejected' | 'suspended';
++  requestedScopes: string[];
++  createdAt: string;
++};
++
++const statusTagMap: Record<Agent['status'], 'info' | 'success' | 'error' | 'alert'> = {
++  pending_review: 'alert',
++  approved: 'success',
++  rejected: 'error',
++  suspended: 'info',
++};
++
++function WinamzAgents() {
++  const { t } = useTranslation(undefined, { keyPrefix: 'admin_console' });
++  const api = useApi();
++
++  const [agents, setAgents] = useState<Agent[]>([]);
++  const [total, setTotal] = useState(0);
++  const [isLoading, setIsLoading] = useState(true);
++  const [keyword, setKeyword] = useState('');
++  const [page, setPage] = useState(1);
++  const pageSize = 20;
++
++  const fetchAgents = useCallback(async () => {
++    setIsLoading(true);
++    try {
++      const params = new URLSearchParams({
++        page: String(page),
++        page_size: String(pageSize),
++      });
++      const response = await api
++        .get(`winamz/agents?${params.toString()}`)
++        .json<{ total: number; items: Agent[] }>();
++      setAgents(response.items);
++      setTotal(response.total);
++    } finally {
++      setIsLoading(false);
++    }
++  }, [api, page]);
++
++  useEffect(() => {
++    void fetchAgents();
++  }, [fetchAgents]);
++
++  const handleApprove = useCallback(
++    async (agentId: string) => {
++      await api.post(`winamz/agents/${agentId}/approve`).json();
++      void fetchAgents();
++    },
++    [api, fetchAgents]
++  );
++
++  const handleSuspend = useCallback(
++    async (agentId: string) => {
++      await api.post(`winamz/agents/${agentId}/suspend`).json();
++      void fetchAgents();
++    },
++    [api, fetchAgents]
++  );
++
++  const handleRestore = useCallback(
++    async (agentId: string) => {
++      await api.post(`winamz/agents/${agentId}/restore`).json();
++      void fetchAgents();
++    },
++    [api, fetchAgents]
++  );
++
++  const filteredAgents = keyword
++    ? agents.filter(
++        (a) =>
++          a.name.toLowerCase().includes(keyword.toLowerCase()) ||
++          a.id.includes(keyword) ||
++          a.orgId.includes(keyword)
++      )
++    : agents;
++
++  return (
++    <div>
++      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
++        <h1>AI Agents</h1>
++        <Search
++          defaultValue={keyword}
++          isClearable={Boolean(keyword)}
++          placeholder="Search agents..."
++          onSearch={setKeyword}
++          onClearSearch={() => { setKeyword(''); }}
++        />
++      </div>
++      <Table
++        isLoading={isLoading}
++        rowIndexKey="id"
++        columns={[
++          {
++            title: 'Name',
++            dataIndex: 'name',
++            render: (_, agent) => (
++              <div>
++                <div style={{ fontWeight: 600 }}>{agent.name}</div>
++                <div style={{ fontSize: 12, color: '#888', fontFamily: 'monospace' }}>
++                  {agent.id}
++                </div>
++              </div>
++            ),
++          },
++          {
++            title: 'Type',
++            dataIndex: 'type',
++            render: (_, agent) => (
++              <Tag type="state" status={agent.type === 'personal' ? 'info' : 'success'}>
++                {agent.type === 'personal' ? 'Personal' : 'Org'}
++              </Tag>
++            ),
++          },
++          {
++            title: 'Status',
++            dataIndex: 'status',
++            render: (_, agent) => (
++              <Tag type="state" status={statusTagMap[agent.status]}>
++                {agent.status.replace('_', ' ')}
++              </Tag>
++            ),
++          },
++          {
++            title: 'Scopes',
++            dataIndex: 'requestedScopes',
++            render: (_, agent) => (
++              <div style={{ fontSize: 12 }}>
++                {agent.requestedScopes.length === 0
++                  ? '—'
++                  : agent.requestedScopes.join(', ')}
++              </div>
++            ),
++          },
++          {
++            title: 'Actions',
++            dataIndex: 'actions',
++            render: (_, agent) => (
++              <div style={{ display: 'flex', gap: 8 }}>
++                {agent.status === 'pending_review' && (
++                  <Button
++                    size="small"
++                    title="Approve"
++                    type="primary"
++                    onClick={() => { void handleApprove(agent.id); }}
++                  />
++                )}
++                {agent.status === 'approved' && (
++                  <Button
++                    size="small"
++                    title="Suspend"
++                    type="danger"
++                    onClick={() => { void handleSuspend(agent.id); }}
++                  />
++                )}
++                {agent.status === 'suspended' && (
++                  <Button
++                    size="small"
++                    title="Restore"
++                    onClick={() => { void handleRestore(agent.id); }}
++                  />
++                )}
++              </div>
++            ),
++          },
++        ]}
++        rowGroups={[{ key: 'agents', data: filteredAgents }]}
++        pagination={{
++          page,
++          totalCount: total,
++          pageSize,
++          onChange: setPage,
++        }}
++        placeholder={<DynamicT forKey="general.no_results_found" />}
++      />
++    </div>
++  );
++}
++
++export default WinamzAgents;
+diff --git a/packages/console/src/pages/winamz/Audit.tsx b/packages/console/src/pages/winamz/Audit.tsx
+new file mode 100644
+index 000000000..9859185c4
+--- /dev/null
++++ b/packages/console/src/pages/winamz/Audit.tsx
+@@ -0,0 +1,174 @@
++/**
++ * WinAMZ Agent Audit Log page.
++ * Provides filterable, paginated view of all AI agent audit events.
++ *
++ * [winamz] New file - no conflict with upstream Logto updates.
++ */
++
++import { useCallback, useEffect, useState } from 'react';
++
++import DynamicT from '@/ds-components/DynamicT';
++import Search from '@/ds-components/Search';
++import Table from '@/ds-components/Table';
++import Tag from '@/ds-components/Tag';
++import useApi from '@/hooks/use-api';
++
++type AuditLog = {
++  id: string;
++  eventType: string;
++  orgId?: string | null;
++  agentId?: string | null;
++  userId?: string | null;
++  actorId?: string | null;
++  resource?: string | null;
++  metadata?: Record<string, unknown> | null;
++  createdAt: string;
++};
++
++const eventTypeColors: Record<string, 'info' | 'success' | 'error' | 'alert'> = {
++  agent_registered: 'info',
++  agent_approved: 'success',
++  agent_suspended: 'error',
++  grant_created: 'success',
++  grant_revoked: 'alert',
++  agent_action: 'info',
++  token_issued: 'info',
++};
++
++function WinamzAudit() {
++  const api = useApi();
++
++  const [logs, setLogs] = useState<AuditLog[]>([]);
++  const [total, setTotal] = useState(0);
++  const [isLoading, setIsLoading] = useState(true);
++  const [keyword, setKeyword] = useState('');
++  const [page, setPage] = useState(1);
++  const pageSize = 20;
++
++  const fetchLogs = useCallback(async () => {
++    setIsLoading(true);
++    try {
++      const params = new URLSearchParams({
++        page: String(page),
++        page_size: String(pageSize),
++      });
++      if (keyword) {
++        params.set('agent_id', keyword);
++      }
++      const response = await api
++        .get(`winamz/audit?${params.toString()}`)
++        .json<{ total: number; data: AuditLog[] }>();
++      setLogs(response.data);
++      setTotal(response.total);
++    } finally {
++      setIsLoading(false);
++    }
++  }, [api, page, keyword]);
++
++  useEffect(() => {
++    void fetchLogs();
++  }, [fetchLogs]);
++
++  return (
++    <div>
++      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
++        <h1>Agent Audit Log</h1>
++        <Search
++          defaultValue={keyword}
++          isClearable={Boolean(keyword)}
++          placeholder="Filter by agent ID..."
++          onSearch={(kw) => {
++            setKeyword(kw);
++            setPage(1);
++          }}
++          onClearSearch={() => {
++            setKeyword('');
++            setPage(1);
++          }}
++        />
++      </div>
++      <Table
++        isLoading={isLoading}
++        rowIndexKey="id"
++        columns={[
++          {
++            title: 'Event',
++            dataIndex: 'eventType',
++            render: (_, log) => (
++              <Tag
++                type="state"
++                status={eventTypeColors[log.eventType] ?? 'info'}
++              >
++                {log.eventType}
++              </Tag>
++            ),
++          },
++          {
++            title: 'Agent ID',
++            dataIndex: 'agentId',
++            render: (_, log) => (
++              <span style={{ fontFamily: 'monospace', fontSize: 12 }}>
++                {log.agentId ?? '—'}
++              </span>
++            ),
++          },
++          {
++            title: 'User ID',
++            dataIndex: 'userId',
++            render: (_, log) => (
++              <span style={{ fontFamily: 'monospace', fontSize: 12 }}>
++                {log.userId ?? '—'}
++              </span>
++            ),
++          },
++          {
++            title: 'Resource',
++            dataIndex: 'resource',
++            render: (_, log) => (
++              <span style={{ fontSize: 12 }}>{log.resource ?? '—'}</span>
++            ),
++          },
++          {
++            title: 'Metadata',
++            dataIndex: 'metadata',
++            render: (_, log) =>
++              log.metadata ? (
++                <pre
++                  style={{
++                    fontSize: 11,
++                    maxWidth: 200,
++                    overflow: 'hidden',
++                    textOverflow: 'ellipsis',
++                    margin: 0,
++                  }}
++                >
++                  {JSON.stringify(log.metadata, null, 1)}
++                </pre>
++              ) : (
++                '—'
++              ),
++          },
++          {
++            title: 'Time',
++            dataIndex: 'createdAt',
++            render: (_, log) => (
++              <span style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
++                {new Date(log.createdAt).toLocaleString()}
++              </span>
++            ),
++          },
++        ]}
++        rowGroups={[{ key: 'logs', data: logs }]}
++        pagination={{
++          page,
++          totalCount: total,
++          pageSize,
++          onChange: setPage,
++        }}
++        placeholder={<DynamicT forKey="general.no_results_found" />}
++      />
++    </div>
++  );
++}
++
++export default WinamzAudit;
+diff --git a/packages/console/src/pages/winamz/Grants.tsx b/packages/console/src/pages/winamz/Grants.tsx
+new file mode 100644
+index 000000000..cf235ec61
+--- /dev/null
++++ b/packages/console/src/pages/winamz/Grants.tsx
+@@ -0,0 +1,181 @@
++/**
++ * WinAMZ Delegation Grants page.
++ * Lists all active/revoked grants, provides Kill Switch capability.
++ *
++ * [winamz] New file - no conflict with upstream Logto updates.
++ */
++
++import { useCallback, useEffect, useState } from 'react';
++
++import Button from '@/ds-components/Button';
++import DynamicT from '@/ds-components/DynamicT';
++import Search from '@/ds-components/Search';
++import Table from '@/ds-components/Table';
++import Tag from '@/ds-components/Tag';
++import useApi from '@/hooks/use-api';
++
++type Grant = {
++  id: string;
++  agentId: string;
++  userId: string;
++  orgId: string;
++  grantedScopes: string[];
++  grantedAt: string;
++  expiresAt?: string | null;
++  revokedAt?: string | null;
++  revokedBy?: string | null;
++};
++
++function WinamzGrants() {
++  const api = useApi();
++
++  const [grants, setGrants] = useState<Grant[]>([]);
++  const [total, setTotal] = useState(0);
++  const [isLoading, setIsLoading] = useState(true);
++  const [keyword, setKeyword] = useState('');
++  const [page, setPage] = useState(1);
++  const [showRevoked, setShowRevoked] = useState(false);
++  const pageSize = 20;
++
++  const fetchGrants = useCallback(async () => {
++    setIsLoading(true);
++    try {
++      const params = new URLSearchParams({
++        page: String(page),
++        page_size: String(pageSize),
++        active: showRevoked ? 'false' : 'true',
++      });
++      const response = await api
++        .get(`winamz/grants?${params.toString()}`)
++        .json<{ total: number; items: Grant[] }>();
++      setGrants(response.items);
++      setTotal(response.total);
++    } finally {
++      setIsLoading(false);
++    }
++  }, [api, page, showRevoked]);
++
++  useEffect(() => {
++    void fetchGrants();
++  }, [fetchGrants]);
++
++  const handleRevoke = useCallback(
++    async (grantId: string) => {
++      const reason = window.prompt('Reason for revocation (optional):') ?? undefined;
++      await api
++        .post(`winamz/grants/${grantId}/revoke`, { json: { reason } })
++        .json();
++      void fetchGrants();
++    },
++    [api, fetchGrants]
++  );
++
++  const filteredGrants = keyword
++    ? grants.filter(
++        (g) =>
++          g.agentId.includes(keyword) ||
++          g.userId.includes(keyword) ||
++          g.id.includes(keyword)
++      )
++    : grants;
++
++  return (
++    <div>
++      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
++        <h1>Delegation Grants</h1>
++        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
++          <Button
++            size="small"
++            title={showRevoked ? 'Show active' : 'Show revoked'}
++            onClick={() => {
++              setShowRevoked((prev) => !prev);
++              setPage(1);
++            }}
++          />
++          <Search
++            defaultValue={keyword}
++            isClearable={Boolean(keyword)}
++            placeholder="Search by agent/user ID..."
++            onSearch={setKeyword}
++            onClearSearch={() => { setKeyword(''); }}
++          />
++        </div>
++      </div>
++      <Table
++        isLoading={isLoading}
++        rowIndexKey="id"
++        columns={[
++          {
++            title: 'Grant ID',
++            dataIndex: 'id',
++            render: (_, grant) => (
++              <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{grant.id}</span>
++            ),
++          },
++          {
++            title: 'Agent ID',
++            dataIndex: 'agentId',
++            render: (_, grant) => (
++              <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{grant.agentId}</span>
++            ),
++          },
++          {
++            title: 'User ID',
++            dataIndex: 'userId',
++            render: (_, grant) => (
++              <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{grant.userId}</span>
++            ),
++          },
++          {
++            title: 'Scopes',
++            dataIndex: 'grantedScopes',
++            render: (_, grant) => (
++              <div style={{ fontSize: 12 }}>{grant.grantedScopes.join(', ') || '—'}</div>
++            ),
++          },
++          {
++            title: 'Status',
++            dataIndex: 'status',
++            render: (_, grant) => (
++              <Tag type="state" status={grant.revokedAt ? 'error' : 'success'}>
++                {grant.revokedAt ? 'Revoked' : 'Active'}
++              </Tag>
++            ),
++          },
++          {
++            title: 'Actions',
++            dataIndex: 'actions',
++            render: (_, grant) => {
++              if (grant.revokedAt) {
++                return (
++                  <span style={{ fontSize: 12, color: '#888' }}>
++                    Revoked {new Date(grant.revokedAt).toLocaleDateString()}
++                  </span>
++                );
++              }
++
++              return (
++                <Button
++                  size="small"
++                  title="Revoke (Kill Switch)"
++                  type="danger"
++                  onClick={() => { void handleRevoke(grant.id); }}
++                />
++              );
++            },
++          },
++        ]}
++        rowGroups={[{ key: 'grants', data: filteredGrants }]}
++        pagination={{
++          page,
++          totalCount: total,
++          pageSize,
++          onChange: setPage,
++        }}
++        placeholder={<DynamicT forKey="general.no_results_found" />}
++      />
++    </div>
++  );
++}
++
++export default WinamzGrants;
+diff --git a/packages/core/src/routes/winamz/agents.ts b/packages/core/src/routes/winamz/agents.ts
+new file mode 100644
+index 000000000..9e6a8ddef
+--- /dev/null
++++ b/packages/core/src/routes/winamz/agents.ts
+@@ -0,0 +1,367 @@
++/**
++ * WinAMZ Agent Registry routes.
++ * Handles CRUD operations for AI agents and approval/suspension lifecycle.
++ *
++ * [winamz] New file - no conflict with upstream Logto updates.
++ */
++
++import { generateStandardId } from '@logto/shared';
++import { z } from 'zod';
++
++import koaGuard from '#src/middleware/koa-guard.js';
++import koaPagination from '#src/middleware/koa-pagination.js';
++
++import type { ManagementApiRouter, RouterInitArgs } from '../types.js';
++
++const agentCreateGuard = z.object({
++  name: z.string().min(1).max(255),
++  type: z.enum(['personal', 'org']),
++  orgId: z.string().min(1),
++  ownerUserId: z.string().optional(),
++  requestedScopes: z.array(z.string()).optional().default([]),
++});
++
++const agentPatchGuard = z.object({
++  name: z.string().min(1).max(255).optional(),
++  requestedScopes: z.array(z.string()).optional(),
++});
++
++const agentResponseGuard = z.object({
++  id: z.string(),
++  name: z.string(),
++  type: z.enum(['personal', 'org']),
++  orgId: z.string(),
++  ownerUserId: z.string().optional().nullable(),
++  logtoAppId: z.string().optional().nullable(),
++  status: z.enum(['pending_review', 'approved', 'rejected', 'suspended']),
++  requestedScopes: z.array(z.string()),
++  createdAt: z.string(),
++  updatedAt: z.string(),
++});
++
++export default function winamzAgentRoutes<T extends ManagementApiRouter>(
++  ...[router, { queries }]: RouterInitArgs<T>
++) {
++  const { pool } = queries;
++
++  // List agents
++  router.get(
++    '/winamz/agents',
++    koaPagination(),
++    koaGuard({
++      query: z.object({
++        orgId: z.string().optional(),
++        status: z.enum(['pending_review', 'approved', 'rejected', 'suspended']).optional(),
++        type: z.enum(['personal', 'org']).optional(),
++      }),
++      response: z.object({ total: z.number(), items: agentResponseGuard.array() }),
++      status: [200],
++    }),
++    async (ctx, next) => {
++      const { limit, offset } = ctx.pagination;
++      const { orgId, status, type } = ctx.guard.query;
++
++      const conditions: string[] = [];
++      const params: unknown[] = [];
++
++      if (orgId) {
++        params.push(orgId);
++        conditions.push(`org_id = $${params.length}`);
++      }
++      if (status) {
++        params.push(status);
++        conditions.push(`status = $${params.length}`);
++      }
++      if (type) {
++        params.push(type);
++        conditions.push(`type = $${params.length}`);
++      }
++
++      const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
++
++      const countResult = await pool.one<{ count: string }>(
++        `SELECT COUNT(*) as count FROM winamz_agents ${where}`,
++        params
++      );
++
++      params.push(limit, offset);
++      const rows = await pool.any(
++        `SELECT id, name, type, org_id as "orgId", owner_user_id as "ownerUserId",
++                logto_app_id as "logtoAppId", status, requested_scopes as "requestedScopes",
++                created_at as "createdAt", updated_at as "updatedAt"
++         FROM winamz_agents ${where}
++         ORDER BY created_at DESC
++         LIMIT $${params.length - 1} OFFSET $${params.length}`,
++        params
++      );
++
++      ctx.body = {
++        total: Number(countResult.count),
++        items: rows.map((row) => ({
++          ...row,
++          createdAt: new Date(row.createdAt as string).toISOString(),
++          updatedAt: new Date(row.updatedAt as string).toISOString(),
++        })),
++      };
++
++      return next();
++    }
++  );
++
++  // Get agent by ID
++  router.get(
++    '/winamz/agents/:id',
++    koaGuard({
++      params: z.object({ id: z.string() }),
++      response: agentResponseGuard,
++      status: [200, 404],
++    }),
++    async (ctx, next) => {
++      const { id } = ctx.guard.params;
++
++      const row = await pool.maybeOne(
++        `SELECT id, name, type, org_id as "orgId", owner_user_id as "ownerUserId",
++                logto_app_id as "logtoAppId", status, requested_scopes as "requestedScopes",
++                created_at as "createdAt", updated_at as "updatedAt"
++         FROM winamz_agents WHERE id = $1`,
++        [id]
++      );
++
++      if (!row) {
++        ctx.status = 404;
++        return next();
++      }
++
++      ctx.body = {
++        ...row,
++        createdAt: new Date(row.createdAt as string).toISOString(),
++        updatedAt: new Date(row.updatedAt as string).toISOString(),
++      };
++
++      return next();
++    }
++  );
++
++  // Create agent
++  router.post(
++    '/winamz/agents',
++    koaGuard({
++      body: agentCreateGuard,
++      response: agentResponseGuard,
++      status: [201],
++    }),
++    async (ctx, next) => {
++      const { name, type, orgId, ownerUserId, requestedScopes } = ctx.guard.body;
++      const id = generateStandardId();
++      const now = new Date();
++
++      const row = await pool.one(
++        `INSERT INTO winamz_agents
++           (id, name, type, org_id, owner_user_id, requested_scopes, created_at, updated_at)
++         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
++         RETURNING id, name, type, org_id as "orgId", owner_user_id as "ownerUserId",
++                   logto_app_id as "logtoAppId", status, requested_scopes as "requestedScopes",
++                   created_at as "createdAt", updated_at as "updatedAt"`,
++        [id, name, type, orgId, ownerUserId ?? null, requestedScopes, now, now]
++      );
++
++      ctx.status = 201;
++      ctx.body = {
++        ...row,
++        createdAt: new Date(row.createdAt as string).toISOString(),
++        updatedAt: new Date(row.updatedAt as string).toISOString(),
++      };
++
++      return next();
++    }
++  );
++
++  // Update agent
++  router.patch(
++    '/winamz/agents/:id',
++    koaGuard({
++      params: z.object({ id: z.string() }),
++      body: agentPatchGuard,
++      response: agentResponseGuard,
++      status: [200, 404],
++    }),
++    async (ctx, next) => {
++      const { id } = ctx.guard.params;
++      const updates = ctx.guard.body;
++
++      const setClauses: string[] = ['updated_at = NOW()'];
++      const params: unknown[] = [id];
++
++      if (updates.name !== undefined) {
++        params.push(updates.name);
++        setClauses.push(`name = $${params.length}`);
++      }
++      if (updates.requestedScopes !== undefined) {
++        params.push(updates.requestedScopes);
++        setClauses.push(`requested_scopes = $${params.length}`);
++      }
++
++      const row = await pool.maybeOne(
++        `UPDATE winamz_agents SET ${setClauses.join(', ')}
++         WHERE id = $1
++         RETURNING id, name, type, org_id as "orgId", owner_user_id as "ownerUserId",
++                   logto_app_id as "logtoAppId", status, requested_scopes as "requestedScopes",
++                   created_at as "createdAt", updated_at as "updatedAt"`,
++        params
++      );
++
++      if (!row) {
++        ctx.status = 404;
++        return next();
++      }
++
++      ctx.body = {
++        ...row,
++        createdAt: new Date(row.createdAt as string).toISOString(),
++        updatedAt: new Date(row.updatedAt as string).toISOString(),
++      };
++
++      return next();
++    }
++  );
++
++  // Delete agent
++  router.delete(
++    '/winamz/agents/:id',
++    koaGuard({
++      params: z.object({ id: z.string() }),
++      status: [204, 404],
++    }),
++    async (ctx, next) => {
++      const { id } = ctx.guard.params;
++
++      const result = await pool.maybeOne(
++        `DELETE FROM winamz_agents WHERE id = $1 RETURNING id`,
++        [id]
++      );
++
++      ctx.status = result ? 204 : 404;
++
++      return next();
++    }
++  );
++
++  // Approve agent
++  router.post(
++    '/winamz/agents/:id/approve',
++    koaGuard({
++      params: z.object({ id: z.string() }),
++      response: agentResponseGuard,
++      status: [200, 404, 422],
++    }),
++    async (ctx, next) => {
++      const { id } = ctx.guard.params;
++
++      const row = await pool.maybeOne(
++        `UPDATE winamz_agents
++         SET status = 'approved', updated_at = NOW()
++         WHERE id = $1 AND status = 'pending_review'
++         RETURNING id, name, type, org_id as "orgId", owner_user_id as "ownerUserId",
++                   logto_app_id as "logtoAppId", status, requested_scopes as "requestedScopes",
++                   created_at as "createdAt", updated_at as "updatedAt"`,
++        [id]
++      );
++
++      if (!row) {
++        const existing = await pool.maybeOne(
++          `SELECT id FROM winamz_agents WHERE id = $1`,
++          [id]
++        );
++        ctx.status = existing ? 422 : 404;
++        return next();
++      }
++
++      ctx.body = {
++        ...row,
++        createdAt: new Date(row.createdAt as string).toISOString(),
++        updatedAt: new Date(row.updatedAt as string).toISOString(),
++      };
++
++      return next();
++    }
++  );
++
++  // Suspend agent
++  router.post(
++    '/winamz/agents/:id/suspend',
++    koaGuard({
++      params: z.object({ id: z.string() }),
++      response: agentResponseGuard,
++      status: [200, 404],
++    }),
++    async (ctx, next) => {
++      const { id } = ctx.guard.params;
++
++      const row = await pool.maybeOne(
++        `UPDATE winamz_agents
++         SET status = 'suspended', updated_at = NOW()
++         WHERE id = $1
++         RETURNING id, name, type, org_id as "orgId", owner_user_id as "ownerUserId",
++                   logto_app_id as "logtoAppId", status, requested_scopes as "requestedScopes",
++                   created_at as "createdAt", updated_at as "updatedAt"`,
++        [id]
++      );
++
++      if (!row) {
++        ctx.status = 404;
++        return next();
++      }
++
++      // Audit log
++      await pool.query(
++        `INSERT INTO winamz_audit_logs (id, event_type, agent_id, org_id, created_at)
++         VALUES ($1, 'agent_suspended', $2, $3, NOW())`,
++        [generateStandardId(), id, row.orgId]
++      );
++
++      ctx.body = {
++        ...row,
++        createdAt: new Date(row.createdAt as string).toISOString(),
++        updatedAt: new Date(row.updatedAt as string).toISOString(),
++      };
++
++      return next();
++    }
++  );
++
++  // Restore agent
++  router.post(
++    '/winamz/agents/:id/restore',
++    koaGuard({
++      params: z.object({ id: z.string() }),
++      response: agentResponseGuard,
++      status: [200, 404],
++    }),
++    async (ctx, next) => {
++      const { id } = ctx.guard.params;
++
++      const row = await pool.maybeOne(
++        `UPDATE winamz_agents
++         SET status = 'approved', updated_at = NOW()
++         WHERE id = $1 AND status = 'suspended'
++         RETURNING id, name, type, org_id as "orgId", owner_user_id as "ownerUserId",
++                   logto_app_id as "logtoAppId", status, requested_scopes as "requestedScopes",
++                   created_at as "createdAt", updated_at as "updatedAt"`,
++        [id]
++      );
++
++      if (!row) {
++        ctx.status = 404;
++        return next();
++      }
++
++      ctx.body = {
++        ...row,
++        createdAt: new Date(row.createdAt as string).toISOString(),
++        updatedAt: new Date(row.updatedAt as string).toISOString(),
++      };
++
++      return next();
++    }
++  );
++}
+diff --git a/packages/core/src/routes/winamz/audit.ts b/packages/core/src/routes/winamz/audit.ts
+new file mode 100644
+index 000000000..d9ce6ce1e
+--- /dev/null
++++ b/packages/core/src/routes/winamz/audit.ts
+@@ -0,0 +1,162 @@
++/**
++ * WinAMZ Audit Log routes.
++ * Provides read and write access to winamz_audit_logs table.
++ *
++ * [winamz] New file - no conflict with upstream Logto updates.
++ */
++
++import { generateStandardId } from '@logto/shared';
++import { z } from 'zod';
++
++import koaGuard from '#src/middleware/koa-guard.js';
++import koaPagination from '#src/middleware/koa-pagination.js';
++
++import type { ManagementApiRouter, RouterInitArgs } from '../types.js';
++
++const auditLogResponseGuard = z.object({
++  id: z.string(),
++  eventType: z.string(),
++  orgId: z.string().nullable().optional(),
++  agentId: z.string().nullable().optional(),
++  userId: z.string().nullable().optional(),
++  actorId: z.string().nullable().optional(),
++  resource: z.string().nullable().optional(),
++  metadata: z.record(z.unknown()).nullable().optional(),
++  createdAt: z.string(),
++});
++
++export default function winamzAuditRoutes<T extends ManagementApiRouter>(
++  ...[router, { queries }]: RouterInitArgs<T>
++) {
++  const { pool } = queries;
++
++  // Query audit logs
++  router.get(
++    '/winamz/audit',
++    koaPagination(),
++    koaGuard({
++      query: z.object({
++        agentId: z.string().optional(),
++        userId: z.string().optional(),
++        orgId: z.string().optional(),
++        eventType: z.string().optional(),
++        from: z.string().optional(),
++        to: z.string().optional(),
++      }),
++      response: z.object({
++        total: z.number(),
++        data: auditLogResponseGuard.array(),
++      }),
++      status: [200],
++    }),
++    async (ctx, next) => {
++      const { limit, offset } = ctx.pagination;
++      const { agentId, userId, orgId, eventType, from, to } = ctx.guard.query;
++
++      const conditions: string[] = [];
++      const params: unknown[] = [];
++
++      if (agentId) {
++        params.push(agentId);
++        conditions.push(`agent_id = $${params.length}`);
++      }
++      if (userId) {
++        params.push(userId);
++        conditions.push(`user_id = $${params.length}`);
++      }
++      if (orgId) {
++        params.push(orgId);
++        conditions.push(`org_id = $${params.length}`);
++      }
++      if (eventType) {
++        params.push(eventType);
++        conditions.push(`event_type = $${params.length}`);
++      }
++      if (from) {
++        params.push(new Date(from));
++        conditions.push(`created_at >= $${params.length}`);
++      }
++      if (to) {
++        params.push(new Date(to));
++        conditions.push(`created_at <= $${params.length}`);
++      }
++
++      const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
++
++      const countResult = await pool.one<{ count: string }>(
++        `SELECT COUNT(*) as count FROM winamz_audit_logs ${where}`,
++        params
++      );
++
++      params.push(limit, offset);
++      const rows = await pool.any(
++        `SELECT id, event_type as "eventType", org_id as "orgId", agent_id as "agentId",
++                user_id as "userId", actor_id as "actorId", resource, metadata,
++                created_at as "createdAt"
++         FROM winamz_audit_logs ${where}
++         ORDER BY created_at DESC
++         LIMIT $${params.length - 1} OFFSET $${params.length}`,
++        params
++      );
++
++      ctx.body = {
++        total: Number(countResult.count),
++        data: rows.map((row) => ({
++          ...row,
++          createdAt: new Date(row.createdAt as string).toISOString(),
++        })),
++      };
++
++      return next();
++    }
++  );
++
++  // Record audit event
++  router.post(
++    '/winamz/audit',
++    koaGuard({
++      body: z.object({
++        eventType: z.string(),
++        orgId: z.string().optional(),
++        agentId: z.string().optional(),
++        userId: z.string().optional(),
++        actorId: z.string().optional(),
++        resource: z.string().optional(),
++        metadata: z.record(z.unknown()).optional(),
++      }),
++      response: auditLogResponseGuard,
++      status: [201],
++    }),
++    async (ctx, next) => {
++      const { eventType, orgId, agentId, userId, actorId, resource, metadata } = ctx.guard.body;
++      const id = generateStandardId();
++
++      const row = await pool.one(
++        `INSERT INTO winamz_audit_logs
++           (id, event_type, org_id, agent_id, user_id, actor_id, resource, metadata)
++         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
++         RETURNING id, event_type as "eventType", org_id as "orgId", agent_id as "agentId",
++                   user_id as "userId", actor_id as "actorId", resource, metadata,
++                   created_at as "createdAt"`,
++        [
++          id,
++          eventType,
++          orgId ?? null,
++          agentId ?? null,
++          userId ?? null,
++          actorId ?? null,
++          resource ?? null,
++          metadata ? JSON.stringify(metadata) : null,
++        ]
++      );
++
++      ctx.status = 201;
++      ctx.body = {
++        ...row,
++        createdAt: new Date(row.createdAt as string).toISOString(),
++      };
++
++      return next();
++    }
++  );
++}
+diff --git a/packages/core/src/routes/winamz/grants.ts b/packages/core/src/routes/winamz/grants.ts
+new file mode 100644
+index 000000000..aedbfee91
+--- /dev/null
++++ b/packages/core/src/routes/winamz/grants.ts
+@@ -0,0 +1,297 @@
++/**
++ * WinAMZ Agent Grants routes.
++ * Manages delegation grants between agents and users.
++ * Provides Kill Switch (revoke) capability.
++ *
++ * [winamz] New file - no conflict with upstream Logto updates.
++ */
++
++import { generateStandardId } from '@logto/shared';
++import { z } from 'zod';
++
++import koaGuard from '#src/middleware/koa-guard.js';
++import koaPagination from '#src/middleware/koa-pagination.js';
++
++import type { ManagementApiRouter, RouterInitArgs } from '../types.js';
++
++const grantResponseGuard = z.object({
++  id: z.string(),
++  agentId: z.string(),
++  userId: z.string(),
++  orgId: z.string(),
++  grantedScopes: z.array(z.string()),
++  grantedAt: z.string(),
++  expiresAt: z.string().nullable().optional(),
++  revokedAt: z.string().nullable().optional(),
++  revokedBy: z.string().nullable().optional(),
++});
++
++export default function winamzGrantRoutes<T extends ManagementApiRouter>(
++  ...[router, { queries }]: RouterInitArgs<T>
++) {
++  const { pool } = queries;
++
++  // List grants
++  router.get(
++    '/winamz/grants',
++    koaPagination(),
++    koaGuard({
++      query: z.object({
++        agentId: z.string().optional(),
++        userId: z.string().optional(),
++        orgId: z.string().optional(),
++        active: z.enum(['true', 'false']).optional(),
++      }),
++      response: z.object({ total: z.number(), items: grantResponseGuard.array() }),
++      status: [200],
++    }),
++    async (ctx, next) => {
++      const { limit, offset } = ctx.pagination;
++      const { agentId, userId, orgId, active } = ctx.guard.query;
++
++      const conditions: string[] = [];
++      const params: unknown[] = [];
++
++      if (agentId) {
++        params.push(agentId);
++        conditions.push(`agent_id = $${params.length}`);
++      }
++      if (userId) {
++        params.push(userId);
++        conditions.push(`user_id = $${params.length}`);
++      }
++      if (orgId) {
++        params.push(orgId);
++        conditions.push(`org_id = $${params.length}`);
++      }
++      if (active === 'true') {
++        conditions.push(`revoked_at IS NULL AND (expires_at IS NULL OR expires_at > NOW())`);
++      } else if (active === 'false') {
++        conditions.push(`(revoked_at IS NOT NULL OR (expires_at IS NOT NULL AND expires_at <= NOW()))`);
++      }
++
++      const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
++
++      const countResult = await pool.one<{ count: string }>(
++        `SELECT COUNT(*) as count FROM winamz_agent_grants ${where}`,
++        params
++      );
++
++      params.push(limit, offset);
++      const rows = await pool.any(
++        `SELECT id, agent_id as "agentId", user_id as "userId", org_id as "orgId",
++                granted_scopes as "grantedScopes", granted_at as "grantedAt",
++                expires_at as "expiresAt", revoked_at as "revokedAt", revoked_by as "revokedBy"
++         FROM winamz_agent_grants ${where}
++         ORDER BY granted_at DESC
++         LIMIT $${params.length - 1} OFFSET $${params.length}`,
++        params
++      );
++
++      ctx.body = {
++        total: Number(countResult.count),
++        items: rows.map((row) => ({
++          ...row,
++          grantedAt: new Date(row.grantedAt as string).toISOString(),
++          expiresAt: row.expiresAt ? new Date(row.expiresAt as string).toISOString() : null,
++          revokedAt: row.revokedAt ? new Date(row.revokedAt as string).toISOString() : null,
++        })),
++      };
++
++      return next();
++    }
++  );
++
++  // Get grant by ID
++  router.get(
++    '/winamz/grants/:id',
++    koaGuard({
++      params: z.object({ id: z.string() }),
++      response: grantResponseGuard,
++      status: [200, 404],
++    }),
++    async (ctx, next) => {
++      const { id } = ctx.guard.params;
++
++      const row = await pool.maybeOne(
++        `SELECT id, agent_id as "agentId", user_id as "userId", org_id as "orgId",
++                granted_scopes as "grantedScopes", granted_at as "grantedAt",
++                expires_at as "expiresAt", revoked_at as "revokedAt", revoked_by as "revokedBy"
++         FROM winamz_agent_grants WHERE id = $1`,
++        [id]
++      );
++
++      if (!row) {
++        ctx.status = 404;
++        return next();
++      }
++
++      ctx.body = {
++        ...row,
++        grantedAt: new Date(row.grantedAt as string).toISOString(),
++        expiresAt: row.expiresAt ? new Date(row.expiresAt as string).toISOString() : null,
++        revokedAt: row.revokedAt ? new Date(row.revokedAt as string).toISOString() : null,
++      };
++
++      return next();
++    }
++  );
++
++  // Create grant
++  router.post(
++    '/winamz/grants',
++    koaGuard({
++      body: z.object({
++        agentId: z.string(),
++        userId: z.string(),
++        orgId: z.string(),
++        grantedScopes: z.array(z.string()),
++        expiresAt: z.string().optional(),
++      }),
++      response: grantResponseGuard,
++      status: [201],
++    }),
++    async (ctx, next) => {
++      const { agentId, userId, orgId, grantedScopes, expiresAt } = ctx.guard.body;
++      const id = generateStandardId();
++
++      const row = await pool.one(
++        `INSERT INTO winamz_agent_grants
++           (id, agent_id, user_id, org_id, granted_scopes, expires_at)
++         VALUES ($1, $2, $3, $4, $5, $6)
++         RETURNING id, agent_id as "agentId", user_id as "userId", org_id as "orgId",
++                   granted_scopes as "grantedScopes", granted_at as "grantedAt",
++                   expires_at as "expiresAt", revoked_at as "revokedAt", revoked_by as "revokedBy"`,
++        [id, agentId, userId, orgId, grantedScopes, expiresAt ?? null]
++      );
++
++      // Audit log
++      await pool.query(
++        `INSERT INTO winamz_audit_logs (id, event_type, agent_id, user_id, org_id, created_at)
++         VALUES ($1, 'grant_created', $2, $3, $4, NOW())`,
++        [generateStandardId(), agentId, userId, orgId]
++      );
++
++      ctx.status = 201;
++      ctx.body = {
++        ...row,
++        grantedAt: new Date(row.grantedAt as string).toISOString(),
++        expiresAt: row.expiresAt ? new Date(row.expiresAt as string).toISOString() : null,
++        revokedAt: null,
++        revokedBy: null,
++      };
++
++      return next();
++    }
++  );
++
++  // Revoke grant (Kill Switch)
++  router.post(
++    '/winamz/grants/:id/revoke',
++    koaGuard({
++      params: z.object({ id: z.string() }),
++      body: z.object({
++        revokedBy: z.string().optional(),
++        reason: z.string().optional(),
++      }),
++      response: z.object({
++        success: z.boolean(),
++        revokedAt: z.string(),
++        reason: z.string().optional(),
++      }),
++      status: [200, 404, 422],
++    }),
++    async (ctx, next) => {
++      const { id } = ctx.guard.params;
++      const { revokedBy, reason } = ctx.guard.body;
++      const now = new Date();
++
++      const row = await pool.maybeOne(
++        `UPDATE winamz_agent_grants
++         SET revoked_at = $2, revoked_by = $3
++         WHERE id = $1 AND revoked_at IS NULL
++         RETURNING id, agent_id as "agentId", user_id as "userId", org_id as "orgId"`,
++        [id, now, revokedBy ?? null]
++      );
++
++      if (!row) {
++        const existing = await pool.maybeOne(
++          `SELECT id, revoked_at FROM winamz_agent_grants WHERE id = $1`,
++          [id]
++        );
++        ctx.status = existing ? 422 : 404;
++        return next();
++      }
++
++      // Audit log
++      await pool.query(
++        `INSERT INTO winamz_audit_logs
++           (id, event_type, agent_id, user_id, org_id, actor_id, metadata, created_at)
++         VALUES ($1, 'grant_revoked', $2, $3, $4, $5, $6, NOW())`,
++        [
++          generateStandardId(),
++          row.agentId,
++          row.userId,
++          row.orgId,
++          revokedBy ?? null,
++          reason ? JSON.stringify({ reason }) : null,
++        ]
++      );
++
++      ctx.body = {
++        success: true,
++        revokedAt: now.toISOString(),
++        ...(reason && { reason }),
++      };
++
++      return next();
++    }
++  );
++
++  // Revoke all grants for a user (batch Kill Switch)
++  router.post(
++    '/winamz/grants/revoke-by-user',
++    koaGuard({
++      body: z.object({
++        userId: z.string(),
++        revokedBy: z.string().optional(),
++        reason: z.string().optional(),
++      }),
++      response: z.object({ revokedCount: z.number() }),
++      status: [200],
++    }),
++    async (ctx, next) => {
++      const { userId, revokedBy, reason } = ctx.guard.body;
++      const now = new Date();
++
++      const rows = await pool.any(
++        `UPDATE winamz_agent_grants
++         SET revoked_at = $2, revoked_by = $3
++         WHERE user_id = $1 AND revoked_at IS NULL
++         RETURNING id, agent_id as "agentId", org_id as "orgId"`,
++        [userId, now, revokedBy ?? null]
++      );
++
++      // Audit logs for each revoked grant
++      for (const row of rows) {
++        await pool.query(
++          `INSERT INTO winamz_audit_logs
++             (id, event_type, agent_id, user_id, org_id, actor_id, metadata, created_at)
++           VALUES ($1, 'grant_revoked', $2, $3, $4, $5, $6, NOW())`,
++          [
++            generateStandardId(),
++            row.agentId,
++            userId,
++            row.orgId,
++            revokedBy ?? null,
++            reason ? JSON.stringify({ reason, batch: true }) : JSON.stringify({ batch: true }),
++          ]
++        );
++      }
++
++      ctx.body = { revokedCount: rows.length };
++
++      return next();
++    }
++  );
++}
+diff --git a/packages/core/src/routes/winamz/index.ts b/packages/core/src/routes/winamz/index.ts
+new file mode 100644
+index 000000000..6ccc3136b
+--- /dev/null
++++ b/packages/core/src/routes/winamz/index.ts
+@@ -0,0 +1,20 @@
++/**
++ * WinAMZ routes entry point.
++ * Registers all winamz-specific routes on the management router.
++ *
++ * [winamz] New file - no conflict with upstream Logto updates.
++ */
++
++import type { ManagementApiRouter, RouterInitArgs } from '../types.js';
++
++import winamzAgentRoutes from './agents.js';
++import winamzAuditRoutes from './audit.js';
++import winamzGrantRoutes from './grants.js';
++
++export default function winamzRoutes<T extends ManagementApiRouter>(
++  ...args: RouterInitArgs<T>
++) {
++  winamzAgentRoutes(...args);
++  winamzGrantRoutes(...args);
++  winamzAuditRoutes(...args);
++}
+diff --git a/packages/schemas/src/migrations/winamz-001-create-tables.ts b/packages/schemas/src/migrations/winamz-001-create-tables.ts
+new file mode 100644
+index 000000000..383a848d1
+--- /dev/null
++++ b/packages/schemas/src/migrations/winamz-001-create-tables.ts
+@@ -0,0 +1,65 @@
++/**
++ * WinAMZ initial migration: create winamz_agents, winamz_agent_grants, winamz_audit_logs tables.
++ *
++ * [winamz] This is a WinAMZ-specific migration file.
++ * It does not modify any existing Logto tables.
++ */
++
++export const up = `
++  CREATE TABLE IF NOT EXISTS winamz_agents (
++    id             VARCHAR(21)  PRIMARY KEY,
++    name           VARCHAR(255) NOT NULL,
++    type           VARCHAR(20)  NOT NULL CHECK (type IN ('personal', 'org')),
++    org_id         VARCHAR(21)  NOT NULL,
++    owner_user_id  VARCHAR(21),
++    logto_app_id   VARCHAR(21),
++    status         VARCHAR(20)  NOT NULL DEFAULT 'pending_review'
++                   CHECK (status IN ('pending_review', 'approved', 'rejected', 'suspended')),
++    requested_scopes TEXT[]     NOT NULL DEFAULT '{}',
++    created_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
++    updated_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW()
++  );
++
++  CREATE INDEX IF NOT EXISTS winamz_agents_org_id ON winamz_agents (org_id);
++  CREATE INDEX IF NOT EXISTS winamz_agents_owner_user_id ON winamz_agents (owner_user_id);
++  CREATE INDEX IF NOT EXISTS winamz_agents_status ON winamz_agents (status);
++
++  CREATE TABLE IF NOT EXISTS winamz_agent_grants (
++    id             VARCHAR(21)  PRIMARY KEY,
++    agent_id       VARCHAR(21)  NOT NULL REFERENCES winamz_agents(id) ON DELETE CASCADE,
++    user_id        VARCHAR(21)  NOT NULL,
++    org_id         VARCHAR(21)  NOT NULL,
++    granted_scopes TEXT[]       NOT NULL DEFAULT '{}',
++    granted_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
++    expires_at     TIMESTAMPTZ,
++    revoked_at     TIMESTAMPTZ,
++    revoked_by     VARCHAR(21)
++  );
++
++  CREATE INDEX IF NOT EXISTS winamz_agent_grants_agent_id ON winamz_agent_grants (agent_id);
++  CREATE INDEX IF NOT EXISTS winamz_agent_grants_user_id ON winamz_agent_grants (user_id);
++  CREATE INDEX IF NOT EXISTS winamz_agent_grants_org_id ON winamz_agent_grants (org_id);
++
++  CREATE TABLE IF NOT EXISTS winamz_audit_logs (
++    id          VARCHAR(21)  PRIMARY KEY,
++    event_type  VARCHAR(50)  NOT NULL,
++    org_id      VARCHAR(21),
++    agent_id    VARCHAR(21),
++    user_id     VARCHAR(21),
++    actor_id    VARCHAR(21),
++    resource    TEXT,
++    metadata    JSONB,
++    created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
++  );
++
++  CREATE INDEX IF NOT EXISTS winamz_audit_logs_agent_id ON winamz_audit_logs (agent_id);
++  CREATE INDEX IF NOT EXISTS winamz_audit_logs_user_id ON winamz_audit_logs (user_id);
++  CREATE INDEX IF NOT EXISTS winamz_audit_logs_org_id ON winamz_audit_logs (org_id);
++  CREATE INDEX IF NOT EXISTS winamz_audit_logs_created_at ON winamz_audit_logs (created_at DESC);
++`;
++
++export const down = `
++  DROP TABLE IF EXISTS winamz_audit_logs;
++  DROP TABLE IF EXISTS winamz_agent_grants;
++  DROP TABLE IF EXISTS winamz_agents;
++`;
+diff --git a/packages/schemas/src/winamz.ts b/packages/schemas/src/winamz.ts
+new file mode 100644
+index 000000000..fc3a1f4e2
+--- /dev/null
++++ b/packages/schemas/src/winamz.ts
+@@ -0,0 +1,58 @@
++/**
++ * WinAMZ type definitions.
++ * All types related to AI agent registry, delegation grants, and audit logs.
++ */
++
++export type WinamzAgentType = 'personal' | 'org';
++
++export type WinamzAgentStatus =
++  | 'pending_review'
++  | 'approved'
++  | 'rejected'
++  | 'suspended';
++
++export type WinamzAgent = {
++  id: string;
++  name: string;
++  type: WinamzAgentType;
++  orgId: string;
++  ownerUserId?: string;
++  logtoAppId?: string;
++  status: WinamzAgentStatus;
++  requestedScopes: string[];
++  createdAt: Date;
++  updatedAt: Date;
++};
++
++export type WinamzAgentGrant = {
++  id: string;
++  agentId: string;
++  userId: string;
++  orgId: string;
++  grantedScopes: string[];
++  grantedAt: Date;
++  expiresAt?: Date;
++  revokedAt?: Date;
++  revokedBy?: string;
++};
++
++export type WinamzAuditEventType =
++  | 'agent_registered'
++  | 'agent_approved'
++  | 'agent_suspended'
++  | 'grant_created'
++  | 'grant_revoked'
++  | 'agent_action'
++  | 'token_issued';
++
++export type WinamzAuditLog = {
++  id: string;
++  eventType: WinamzAuditEventType;
++  orgId?: string;
++  agentId?: string;
++  userId?: string;
++  actorId?: string;
++  resource?: string;
++  metadata?: Record<string, unknown>;
++  createdAt: Date;
++};
+-- 
+2.54.0
+
