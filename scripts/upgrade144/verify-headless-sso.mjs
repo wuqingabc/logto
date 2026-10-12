@@ -5,6 +5,7 @@
  * File must be owned by the caller and chmod 600; all values stay out of logs.
  * Required JSON fields: endpoint, clientId, clientSecret, redirectUri, username,
  * password, organizationId, origin. Optional audience defaults to https://api.winamz.com.
+ * Optional ssoClientId, ssoClientSecret, ssoRedirectUri select a separate embedded app.
  * Optional scope defaults to Core's lean login scopes. Uses cloned registered client redirects.
  */
 import assert from 'node:assert/strict';
@@ -47,6 +48,10 @@ try {
     config.scope ??
     'openid profile email offline_access urn:logto:scope:organizations urn:logto:scope:organization_roles';
   const callback = new URL(config.redirectUri);
+  const ssoClientId = config.ssoClientId ?? config.clientId;
+  const ssoClientSecret = config.ssoClientSecret ?? config.clientSecret;
+  const ssoRedirectUri = config.ssoRedirectUri ?? config.redirectUri;
+  if (config.ssoClientId) assert(config.ssoClientSecret && config.ssoRedirectUri);
   const verifier = randomBytes(48).toString('base64url');
   const challenge = createHash('sha256').update(verifier).digest('base64url');
   const loginState = randomBytes(20).toString('base64url');
@@ -94,13 +99,13 @@ try {
     assert.equal(response.status, status);
     return response.json();
   };
-  const authorization = (state, prompt) => {
+  const authorization = (state, prompt, sso = false) => {
     const url = new URL('/oidc/auth', base);
     url.search = new URLSearchParams({
-      client_id: config.clientId,
-      redirect_uri: config.redirectUri,
+      client_id: sso ? ssoClientId : config.clientId,
+      redirect_uri: sso ? ssoRedirectUri : config.redirectUri,
       response_type: 'code',
-      scope,
+      scope: sso ? (config.ssoScope ?? 'openid profile email') : scope,
       state,
       code_challenge: challenge,
       code_challenge_method: 'S256',
@@ -109,10 +114,13 @@ try {
     });
     return url;
   };
-  const followCode = async (start, jar, state) => {
+  const followCode = async (start, jar, state, expectedCallback = callback) => {
     let current = new URL(start, base);
     for (let count = 0; count < 12; count++) {
-      if (current.origin === callback.origin && current.pathname === callback.pathname) {
+      if (
+        current.origin === expectedCallback.origin &&
+        current.pathname === expectedCallback.pathname
+      ) {
         assert.equal(current.searchParams.get('state'), state);
         assert(!current.searchParams.has('error'));
         const code = current.searchParams.get('code');
@@ -141,9 +149,9 @@ try {
     );
   const payload = (value) =>
     JSON.parse(Buffer.from(value.split('.')[1], 'base64url').toString('utf8'));
-  const checkAccess = (value) => {
+  const checkAccess = (value, expectedClientId = config.clientId) => {
     const claims = payload(value);
-    assert.equal(claims.client_id, config.clientId);
+    assert.equal(claims.client_id, expectedClientId);
     assert(Array.isArray(claims.aud) ? claims.aud.includes(audience) : claims.aud === audience);
     assert(typeof claims.sub === 'string' && typeof claims.winamz_session_uid === 'string');
     assert(claims.exp > Math.floor(Date.now() / 1000));
@@ -243,15 +251,22 @@ try {
 
   stage = 'cookie-only prompt none SSO';
   const ssoState = randomBytes(20).toString('base64url');
-  const ssoCode = await followCode(authorization(ssoState, 'none'), webviewJar, ssoState);
+  const ssoCode = await followCode(
+    authorization(ssoState, 'none', true),
+    webviewJar,
+    ssoState,
+    new URL(ssoRedirectUri)
+  );
   const ssoTokens = await exchange({
     grant_type: 'authorization_code',
     code: ssoCode,
-    redirect_uri: config.redirectUri,
+    redirect_uri: ssoRedirectUri,
+    client_id: ssoClientId,
+    client_secret: ssoClientSecret,
     code_verifier: verifier,
     resource: audience,
   });
-  assert.equal(checkAccess(ssoTokens.access_token).sub, loginClaims.sub);
+  assert.equal(checkAccess(ssoTokens.access_token, ssoClientId).sub, loginClaims.sub);
   console.log('PASS cookie-only prompt=none SSO for original user');
 } catch {
   // Intentionally omit exception text: provider errors can contain secrets or redirect URLs.
