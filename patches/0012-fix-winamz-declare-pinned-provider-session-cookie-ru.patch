@@ -1,0 +1,32 @@
+From 8e45f86c5c66672952607f06973cc241cf722067 Mon Sep 17 00:00:00 2001
+From: "wuqingabc@hotmail.com" <wuqingabc@hotmail.com>
+Date: Mon, 12 Oct 2026 18:00:04 +0800
+Subject: [PATCH] fix(winamz): declare pinned provider session cookie runtime
+ APIs
+
+---
+ packages/core/src/include.d/oidc-provider/index.d.ts | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/packages/core/src/include.d/oidc-provider/index.d.ts b/packages/core/src/include.d/oidc-provider/index.d.ts
+index 6cb8036bb..9dd938278 100644
+--- a/packages/core/src/include.d/oidc-provider/index.d.ts
++++ b/packages/core/src/include.d/oidc-provider/index.d.ts
+@@ -4,4 +4,14 @@ declare module 'oidc-provider' {
+   export interface AllClientMetadata extends CustomClientMetadata {
+     appLevelAccessControlEnabled?: boolean;
+   }
++
++  export interface Provider {
++    /** Configured cookie names exposed by the pinned oidc-provider 9 runtime. */
++    cookieName(type: 'session' | 'interaction' | 'resume' | 'state'): string;
++  }
++
++  export interface Session {
++    /** Runtime getter/setter alias for jti, used as the signed session cookie value. */
++    id: string;
++  }
+ }
+-- 
+2.50.1 (Apple Git-155)
+

@@ -4,18 +4,21 @@ services:
   logto:
     # 自构建镜像（patch stack 模式，详见 ADR-013）
     # 构建：bash scripts/build-image.sh
-    image: ${LOGTO_IMAGE:-winamz/logto:69d3eb6bd-winamz.0}
+    image: ${LOGTO_IMAGE:-winamz/logto:v1.44.0-winamz.3}
     depends_on:
       postgres:
         condition: service_healthy
     ports:
-      - "3001:3001"
-      - "3002:3002"
+      - "3001:4000"
+      - "3002:4001"
     environment:
       - TRUST_PROXY_HEADER=1
       - DB_URL=postgres://postgres:p0stgr3s@postgres:5432/logto
       - ENDPOINT
       - ADMIN_ENDPOINT
+      - WINAMZ_SILENT_GRANT_CLIENT_IDS=winamz-launcher-spa,winamz-buyer-spa,winamz-seller-spa
+      - WINAMZ_SILENT_GRANT_AUDIENCES=https://api.winamz.com
+      - WINAMZ_SILENT_GRANT_ORIGINS=tauri://localhost,http://tauri.localhost,https://tauri.localhost
 
   postgres:
     image: postgres:17-alpine

@@ -1,0 +1,1057 @@
+From 10cb5a8291fcd94c50c7823086ceb5763924469b Mon Sep 17 00:00:00 2001
+From: "wuqingabc@hotmail.com" <wuqingabc@hotmail.com>
+Date: Mon, 12 Oct 2026 17:33:32 +0800
+Subject: [PATCH 11/11] fix(winamz): secure session bridge and migrate
+ extension user ids for 1.44
+
+---
+ packages/core/src/oidc/init.ts                |  10 +-
+ packages/core/src/routes/init.ts              |  13 +-
+ packages/core/src/routes/winamz/agents.ts     |   5 +-
+ packages/core/src/routes/winamz/audit.ts      |   5 +-
+ packages/core/src/routes/winamz/grants.ts     |   5 +-
+ .../src/routes/winamz/silent-grant-claims.ts  |  32 ++
+ .../winamz/silent-grant.integration.test.mjs  | 326 ++++++++++++++++++
+ .../core/src/routes/winamz/silent-grant.ts    | 156 ++++-----
+ .../src/routes/winamz/tenant-boundary.test.ts |  67 ++++
+ .../core/src/routes/winamz/tenant-boundary.ts |  14 +
+ ...1789000001-winamz-extend-user-id-length.ts |  56 +++
+ .../scripts/check-winamz-user-id-width.mjs    | 146 ++++++++
+ 12 files changed, 738 insertions(+), 97 deletions(-)
+ create mode 100644 packages/core/src/routes/winamz/silent-grant-claims.ts
+ create mode 100644 packages/core/src/routes/winamz/silent-grant.integration.test.mjs
+ create mode 100644 packages/core/src/routes/winamz/tenant-boundary.test.ts
+ create mode 100644 packages/core/src/routes/winamz/tenant-boundary.ts
+ create mode 100644 packages/schemas/alterations/1.44.0-1789000001-winamz-extend-user-id-length.ts
+ create mode 100644 packages/schemas/scripts/check-winamz-user-id-width.mjs
+
+diff --git a/packages/core/src/oidc/init.ts b/packages/core/src/oidc/init.ts
+index 5fc8bdae9..41dd7d44c 100644
+--- a/packages/core/src/oidc/init.ts
++++ b/packages/core/src/oidc/init.ts
+@@ -51,6 +51,10 @@ import { i18next } from '#src/utils/i18n.js';
+ 
+ import { type SubscriptionLibrary } from '../libraries/subscription.js';
+ import koaTokenUsageGuard from '../middleware/koa-token-usage-guard.js';
++import {
++  getSilentGrantSessionUid,
++  withSilentGrantSessionClaim,
++} from '../routes/winamz/silent-grant-claims.js';
+ 
+ import {
+   appLevelAccessControlMetadataKey,
+@@ -411,7 +415,9 @@ export default function initOidc(
+           ),
+         ]);
+ 
++      const silentGrantSessionUid = getSilentGrantSessionUid(ctx, token);
+       if (
++        !silentGrantSessionUid &&
+         !authenticationContextClaims &&
+         !organizationApiResourceClaims &&
+         !jwtCustomizedClaims &&
+@@ -420,12 +426,12 @@ export default function initOidc(
+         return;
+       }
+ 
+-      return {
++      return withSilentGrantSessionClaim(ctx, token, {
+         ...tokenExchangeClaims,
+         ...organizationApiResourceClaims,
+         ...authenticationContextClaims,
+         ...jwtCustomizedClaims,
+-      };
++      });
+     },
+     extraClientMetadata: {
+       properties: [...extraClientMetadataKeys],
+diff --git a/packages/core/src/routes/init.ts b/packages/core/src/routes/init.ts
+index 3509a311d..c3e798cfc 100644
+--- a/packages/core/src/routes/init.ts
++++ b/packages/core/src/routes/init.ts
+@@ -58,6 +58,7 @@ import wellKnownRoutes from './well-known/index.js';
+ import wellKnownOpenApiRoutes from './well-known/well-known.openapi.js';
+ // [winamz] Import WinAMZ AI agent routes + silent-grant anonymous endpoint
+ import winamzRoutes, { winamzAnonymousRoutes } from './winamz/index.js';
++import { setSilentGrantCorsHeaders } from './winamz/silent-grant.js';
+ 
+ const createRouters = (tenant: TenantContext) => {
+   const interactionRouter: AnonymousRouter = new Router();
+@@ -141,18 +142,10 @@ export default function initApis(tenant: TenantContext): Koa {
+   const apisApp = new Koa();
+   const { adminUrlSet, cloudUrlSet } = EnvSet.values;
+ 
+-  // [winamz] silent-grant CORS — must reflect Origin + Allow-Credentials
+-  // BEFORE koaCors short-circuits OPTIONS preflight (global koaCors has
+-  // credentials: false). Route auth is done in the route handler itself
+-  // (Bearer access_token verified via JWKS), so any origin is acceptable here.
++  // Check the same explicit origin policy before global CORS can handle preflight.
+   apisApp.use(async (ctx, next) => {
+     if (ctx.path === '/internal/silent-grant') {
+-      const origin = ctx.request.headers.origin;
+-      if (origin) {
+-        ctx.set('Access-Control-Allow-Origin', origin);
+-        ctx.set('Access-Control-Allow-Credentials', 'true');
+-        ctx.set('Vary', 'Origin');
+-      }
++      setSilentGrantCorsHeaders(ctx);
+       if (ctx.method === 'OPTIONS') {
+         ctx.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+         ctx.set('Access-Control-Allow-Headers', 'authorization, content-type');
+diff --git a/packages/core/src/routes/winamz/agents.ts b/packages/core/src/routes/winamz/agents.ts
+index 05a8cfdd5..b3d228574 100644
+--- a/packages/core/src/routes/winamz/agents.ts
++++ b/packages/core/src/routes/winamz/agents.ts
+@@ -15,6 +15,8 @@ import koaPagination from '#src/middleware/koa-pagination.js';
+ 
+ import type { ManagementApiRouter, RouterInitArgs } from '../types.js';
+ 
++import koaWinamzTenantBoundary from './tenant-boundary.js';
++
+ const agentCreateGuard = z.object({
+   name: z.string().min(1).max(255),
+   type: z.enum(['personal', 'org']),
+@@ -61,9 +63,10 @@ const toResponse = (row: AgentRow) => ({
+ });
+ 
+ export default function winamzAgentRoutes<T extends ManagementApiRouter>(
+-  ...[router, { queries }]: RouterInitArgs<T>
++  ...[router, { queries, id: tenantId }]: RouterInitArgs<T>
+ ) {
+   const { pool } = queries;
++  router.use('/winamz/agents', koaWinamzTenantBoundary(tenantId));
+ 
+   // List agents
+   router.get(
+diff --git a/packages/core/src/routes/winamz/audit.ts b/packages/core/src/routes/winamz/audit.ts
+index 7d0dd59d0..4ee13e481 100644
+--- a/packages/core/src/routes/winamz/audit.ts
++++ b/packages/core/src/routes/winamz/audit.ts
+@@ -14,6 +14,8 @@ import koaPagination from '#src/middleware/koa-pagination.js';
+ 
+ import type { ManagementApiRouter, RouterInitArgs } from '../types.js';
+ 
++import koaWinamzTenantBoundary from './tenant-boundary.js';
++
+ const auditLogResponseGuard = z.object({
+   id: z.string(),
+   eventType: z.string(),
+@@ -51,9 +53,10 @@ const auditSelectCols = sql`
+ `;
+ 
+ export default function winamzAuditRoutes<T extends ManagementApiRouter>(
+-  ...[router, { queries }]: RouterInitArgs<T>
++  ...[router, { queries, id: tenantId }]: RouterInitArgs<T>
+ ) {
+   const { pool } = queries;
++  router.use('/winamz/audit', koaWinamzTenantBoundary(tenantId));
+ 
+   // Query audit logs
+   router.get(
+diff --git a/packages/core/src/routes/winamz/grants.ts b/packages/core/src/routes/winamz/grants.ts
+index a6211b029..c183a406a 100644
+--- a/packages/core/src/routes/winamz/grants.ts
++++ b/packages/core/src/routes/winamz/grants.ts
+@@ -15,6 +15,8 @@ import koaPagination from '#src/middleware/koa-pagination.js';
+ 
+ import type { ManagementApiRouter, RouterInitArgs } from '../types.js';
+ 
++import koaWinamzTenantBoundary from './tenant-boundary.js';
++
+ const grantResponseGuard = z.object({
+   id: z.string(),
+   agentId: z.string(),
+@@ -59,9 +61,10 @@ const grantSelectCols = sql`
+ `;
+ 
+ export default function winamzGrantRoutes<T extends ManagementApiRouter>(
+-  ...[router, { queries }]: RouterInitArgs<T>
++  ...[router, { queries, id: tenantId }]: RouterInitArgs<T>
+ ) {
+   const { pool } = queries;
++  router.use('/winamz/grants', koaWinamzTenantBoundary(tenantId));
+ 
+   // List grants
+   router.get(
+diff --git a/packages/core/src/routes/winamz/silent-grant-claims.ts b/packages/core/src/routes/winamz/silent-grant-claims.ts
+new file mode 100644
+index 000000000..b4886e590
+--- /dev/null
++++ b/packages/core/src/routes/winamz/silent-grant-claims.ts
+@@ -0,0 +1,32 @@
++import type { KoaContextWithOIDC } from 'oidc-provider';
++
++/** Reserved claim: always assign this after customizable claims, even when undefined. */
++export const getSilentGrantSessionUid = (
++  ctx: KoaContextWithOIDC,
++  token: unknown
++): string | undefined => {
++  if (!(token instanceof ctx.oidc.provider.AccessToken) || !token.accountId || !token.sessionUid) {
++    return;
++  }
++  // These are the standard OAuth grant_type wire values; exchange/impersonation is excluded.
++  const source =
++    ctx.oidc.params?.grant_type === 'authorization_code'
++      ? ctx.oidc.entities.AuthorizationCode
++      : ctx.oidc.params?.grant_type === 'refresh_token'
++        ? ctx.oidc.entities.RefreshToken
++        : ctx.oidc.params?.grant_type === 'urn:ietf:params:oauth:grant-type:device_code'
++          ? ctx.oidc.entities.DeviceCode
++          : undefined;
++  if (source?.accountId === token.accountId && source.sessionUid === token.sessionUid) {
++    return token.sessionUid;
++  }
++};
++
++export const withSilentGrantSessionClaim = (
++  ctx: KoaContextWithOIDC,
++  token: unknown,
++  claims: Record<string, unknown>
++): Record<string, unknown> => ({
++  ...claims,
++  winamz_session_uid: getSilentGrantSessionUid(ctx, token),
++});
+diff --git a/packages/core/src/routes/winamz/silent-grant.integration.test.mjs b/packages/core/src/routes/winamz/silent-grant.integration.test.mjs
+new file mode 100644
+index 000000000..5c2e6e208
+--- /dev/null
++++ b/packages/core/src/routes/winamz/silent-grant.integration.test.mjs
+@@ -0,0 +1,326 @@
++/**
++ * Runtime security regression suite. Uses the real pinned oidc-provider, Koa, JOSE and cookies.
++ * Run against compiled route with WINAMZ_SILENT_GRANT_MODULE pointing to its JS module.
++ * WINAMZ_TEST_RUNTIME optionally selects an isolated dependency installation.
++ */
++import assert from 'node:assert/strict';
++import { createRequire } from 'node:module';
++import { resolve } from 'node:path';
++import { test } from 'node:test';
++import { pathToFileURL } from 'node:url';
++
++const require = createRequire(
++  resolve(process.env.WINAMZ_TEST_RUNTIME ?? process.cwd(), 'package.json')
++);
++const load = (name) => import(pathToFileURL(require.resolve(name)));
++const [{ default: Provider }, { default: Koa }, { default: Router }, { default: request }, jose] =
++  await Promise.all(['oidc-provider', 'koa', 'koa-router', 'supertest', 'jose'].map(load));
++const { default: route } = await import(
++  process.env.WINAMZ_SILENT_GRANT_MODULE
++    ? pathToFileURL(process.env.WINAMZ_SILENT_GRANT_MODULE)
++    : new URL('./silent-grant.js', import.meta.url)
++);
++const issuer = 'https://identity.example.com/oidc';
++const clientId = 'trusted-launcher';
++const audience = 'https://api.example.com';
++const origin = 'https://launcher.example.com';
++const { privateKey, publicKey } = await jose.generateKeyPair('RS256', {
++  extractable: true,
++});
++const publicJwk = {
++  ...(await jose.exportJWK(publicKey)),
++  kid: 'test',
++  use: 'sig',
++  alg: 'RS256',
++};
++const privateJwk = {
++  ...(await jose.exportJWK(privateKey)),
++  kid: 'test',
++  use: 'sig',
++  alg: 'RS256',
++};
++process.env.WINAMZ_SILENT_GRANT_CLIENT_IDS = clientId;
++process.env.WINAMZ_SILENT_GRANT_AUDIENCES = audience;
++process.env.WINAMZ_SILENT_GRANT_ORIGINS = origin;
++const store = new Map();
++class Adapter {
++  constructor(name) {
++    this.name = name;
++  }
++  async upsert(id, payload) {
++    store.set(`${this.name}:${id}`, payload);
++  }
++  async find(id) {
++    return store.get(`${this.name}:${id}`);
++  }
++  async findByUid(uid) {
++    return [...store.entries()].find(
++      ([key, value]) => key.startsWith(`${this.name}:`) && value.uid === uid
++    )?.[1];
++  }
++  async destroy(id) {
++    store.delete(`${this.name}:${id}`);
++  }
++}
++const provider = new Provider(issuer, {
++  adapter: Adapter,
++  jwks: { keys: [privateJwk] },
++  cookies: { keys: ['cookie-key-for-test'] },
++  features: { devInteractions: { enabled: false } },
++});
++const now = Math.floor(Date.now() / 1000);
++const source = new provider.Session();
++source.loginAccount({
++  accountId: 'user-1',
++  loginTs: now - 900,
++  amr: ['pwd', 'otp'],
++  acr: 'urn:logto:acr:multi-factor',
++});
++source.grantIdFor(clientId, 'original-grant');
++await source.save(3600);
++let suspended = false;
++let thirdParty = false;
++let machine = false;
++const tenant = {
++  provider,
++  envSet: { oidc: { issuer, publicJwks: [publicJwk] } },
++  queries: {
++    users: { findUserById: async (id) => ({ id, isSuspended: suspended }) },
++    applications: {
++      findApplicationById: async (id) => ({
++        id,
++        isThirdParty: thirdParty,
++        type: machine ? 'MachineToMachine' : 'Native',
++      }),
++    },
++  },
++};
++const router = new Router();
++route(router, tenant);
++const app = new Koa();
++app.use(async (ctx, next) => {
++  try {
++    await next();
++  } catch (error) {
++    ctx.status = error.status ?? 500;
++    ctx.body = { error: error.message };
++  }
++});
++app.use(router.routes());
++const token = async (claims = {}, typ = 'at+jwt', tokenIssuer = issuer) =>
++  new jose.SignJWT({
++    sub: 'user-1',
++    client_id: clientId,
++    winamz_session_uid: source.uid,
++    aud: audience,
++    exp: now + 300,
++    ...claims,
++  })
++    .setProtectedHeader({ alg: 'RS256', kid: 'test', typ })
++    .setIssuer(tokenIssuer)
++    .setIssuedAt()
++    .sign(privateKey);
++const send = async (value, requestOrigin = origin) =>
++  request(app.callback())
++    .post('/internal/silent-grant')
++    .set('Origin', requestOrigin)
++    .set('Authorization', `Bearer ${value}`);
++
++for (const [name, claims, typ, tokenIssuer] of [
++  ['ID token', {}, 'JWT'],
++  ['wrong issuer', {}, 'at+jwt', 'https://other.example.com'],
++  ['wrong audience', { aud: 'https://other.example.com' }],
++  ['wrong client', { client_id: 'untrusted' }],
++  ['M2M subject', { sub: clientId }],
++  ['missing source session', { winamz_session_uid: undefined }],
++  ['unknown source session', { winamz_session_uid: 'missing' }],
++  ['missing client', { client_id: undefined }],
++  ['another user session', { sub: 'user-2' }],
++  ['missing expiry', { exp: undefined }],
++]) {
++  test(`rejects ${name} without setting cookies`, async () => {
++    const response = await send(await token(claims, typ, tokenIssuer));
++    assert.equal(response.status, 401, response.text);
++    assert.equal(response.headers['set-cookie'], undefined);
++  });
++}
++test('rejects suspended users', async () => {
++  suspended = true;
++  try {
++    assert.equal((await send(await token())).status, 401);
++  } finally {
++    suspended = false;
++  }
++});
++test('rejects third party clients', async () => {
++  thirdParty = true;
++  try {
++    assert.equal((await send(await token())).status, 401);
++  } finally {
++    thirdParty = false;
++  }
++});
++test('rejects machine clients', async () => {
++  machine = true;
++  try {
++    assert.equal((await send(await token())).status, 401);
++  } finally {
++    machine = false;
++  }
++});
++test('rejects untrusted origins including preflight', async () => {
++  assert.equal((await send(await token(), 'https://evil.example.com')).status, 403);
++  const response = await request(app.callback())
++    .options('/internal/silent-grant')
++    .set('Origin', 'https://evil.example.com');
++  assert.equal(response.status, 403);
++  assert.equal(response.headers['access-control-allow-credentials'], undefined);
++});
++test('primes original signed session without changing authentication or extending expiry', async () => {
++  const response = await send(await token());
++  assert.equal(response.status, 200, response.text);
++  assert.equal(response.body.sessionId, undefined);
++  const cookies = response.headers['set-cookie'];
++  assert.equal(cookies.length, 2);
++  const probe = new Koa();
++  probe.use(async (ctx) => {
++    const session = await provider.Session.get(ctx);
++    ctx.body = {
++      id: session.id,
++      accountId: session.accountId,
++      loginTs: session.loginTs,
++      amr: session.amr,
++      exp: session.exp,
++    };
++  });
++  const result = await request(probe.callback())
++    .get('/')
++    .set('Cookie', cookies.map((cookie) => cookie.split(';')[0]).join('; '));
++  assert.equal(result.body.id, source.id);
++  assert.equal(result.body.accountId, 'user-1');
++  assert.equal(result.body.loginTs, now - 900);
++  assert.deepEqual(result.body.amr, ['pwd', 'otp']);
++  assert.equal(result.body.exp, source.exp);
++  const forged = await request(probe.callback())
++    .get('/')
++    .set('Cookie', `${provider.cookieName('session')}=${source.id}`);
++  assert.equal(forged.body.accountId, undefined);
++  assert.ok(response.body.ttlSeconds <= 3600);
++});
++
++const { getSilentGrantSessionUid, withSilentGrantSessionClaim } = await import(
++  process.env.WINAMZ_SILENT_GRANT_CLAIMS_MODULE
++    ? pathToFileURL(process.env.WINAMZ_SILENT_GRANT_CLAIMS_MODULE)
++    : new URL('./silent-grant-claims.js', import.meta.url)
++);
++const client = { clientId };
++for (const [grantType, entityName, Entity] of [
++  ['authorization_code', 'AuthorizationCode', provider.AuthorizationCode],
++  ['refresh_token', 'RefreshToken', provider.RefreshToken],
++  ['urn:ietf:params:oauth:grant-type:device_code', 'DeviceCode', provider.DeviceCode],
++]) {
++  test(`trusted session UID is preserved only from bound ${grantType}`, () => {
++    const properties = {
++      client,
++      accountId: 'user-1',
++      sessionUid: source.uid,
++      grantId: 'original-grant',
++      scope: 'openid',
++    };
++    const accessToken = new provider.AccessToken(properties);
++    const sourceToken = new Entity({
++      ...properties,
++      params: {},
++      userCode: 'ABCD-EFGH',
++      deviceInfo: {},
++    });
++    const ctx = {
++      oidc: {
++        provider,
++        params: { grant_type: grantType },
++        entities: { [entityName]: sourceToken },
++      },
++    };
++    assert.equal(getSilentGrantSessionUid(ctx, accessToken), source.uid);
++    assert.equal(
++      getSilentGrantSessionUid(
++        ctx,
++        new provider.AccessToken({ ...properties, accountId: 'other-user' })
++      ),
++      undefined
++    );
++    assert.equal(
++      getSilentGrantSessionUid(
++        ctx,
++        new provider.AccessToken({ ...properties, sessionUid: 'injected' })
++      ),
++      undefined
++    );
++    assert.equal(getSilentGrantSessionUid(ctx, { ...properties }), undefined);
++    assert.equal(
++      getSilentGrantSessionUid(
++        {
++          oidc: {
++            ...ctx.oidc,
++            params: {
++              grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
++            },
++          },
++        },
++        accessToken
++      ),
++      undefined
++    );
++    assert.equal(
++      getSilentGrantSessionUid({ oidc: { ...ctx.oidc, entities: {} } }, accessToken),
++      undefined
++    );
++  });
++}
++test('rejects expired JWT without setting a cookie', async () => {
++  const response = await send(await token({ exp: now - 60 }));
++  assert.equal(response.status, 401);
++  assert.equal(response.headers['set-cookie'], undefined);
++});
++test('logout of original session invalidates priming', async () => {
++  await source.destroy();
++  const response = await send(await token());
++  assert.equal(response.status, 401);
++  assert.equal(response.headers['set-cookie'], undefined);
++});
++
++test('custom claims cannot inject or overwrite the reserved session UID', () => {
++  const properties = {
++    client,
++    accountId: 'user-1',
++    sessionUid: source.uid,
++    grantId: 'original-grant',
++    scope: 'openid',
++  };
++  const accessToken = new provider.AccessToken(properties);
++  const ctx = {
++    oidc: {
++      provider,
++      params: { grant_type: 'authorization_code' },
++      entities: { AuthorizationCode: new provider.AuthorizationCode(properties) },
++    },
++  };
++  assert.equal(
++    withSilentGrantSessionClaim(ctx, accessToken, { winamz_session_uid: 'injected', custom: true })
++      .winamz_session_uid,
++    source.uid
++  );
++  assert.equal(
++    withSilentGrantSessionClaim(
++      { oidc: { ...ctx.oidc, params: { grant_type: 'client_credentials' } } },
++      accessToken,
++      { winamz_session_uid: 'injected' }
++    ).winamz_session_uid,
++    undefined
++  );
++  assert.equal(
++    withSilentGrantSessionClaim(ctx, { ...properties }, { winamz_session_uid: 'injected' })
++      .winamz_session_uid,
++    undefined
++  );
++});
+diff --git a/packages/core/src/routes/winamz/silent-grant.ts b/packages/core/src/routes/winamz/silent-grant.ts
+index 160c36f33..afed6378a 100644
+--- a/packages/core/src/routes/winamz/silent-grant.ts
++++ b/packages/core/src/routes/winamz/silent-grant.ts
+@@ -1,40 +1,8 @@
+ /**
+- * [winamz] New file - silent SSO endpoint for trusted launcher.
+- *
+- * Allows winamz-launcher (after headless-login obtains a logto access_token)
+- * to "prime" a logto sign-in session cookie in the launcher's main webview,
+- * so that any embedded child webview (vikunja / future) gets silent SSO when
+- * doing OIDC code flow against logto — no user interaction.
+- *
+- * Flow:
+- *   1. launcher main webview fetch POST /internal/silent-grant (mounted under /api root → effective /api/internal/silent-grant)
+- *      with `Authorization: Bearer <user's logto access_token>`
+- *      and `credentials: 'include'`
+- *   2. This endpoint verifies the token (logto JWKS) and extracts `sub`.
+- *   3. Creates a logto sign-in session for `sub` (14 days TTL).
+- *   4. Sets the logto session cookie on the response → cookie lands in the
+- *      launcher's `webview-shared/Cookies/` (since main + child webviews share
+- *      that data directory; see winamz-launcher tauri.conf.json).
+- *   5. Future child webview (e.g. vikunja) doing OIDC against logto → silent
+- *      SSO completes via the shared cookie (no sign-in page).
+- *
+- * Security:
+- *   - Caller must present a Bearer token signed by THIS logto tenant
+- *     (verified via JWKS). Effectively requires the caller to have
+- *     successfully completed a password / OIDC grant for that user.
+- *   - Token's `sub` becomes the session's accountId (no user impersonation —
+- *     the session is for the same identity that owns the token).
+- *   - 14d TTL matches logto default Session TTL.
+- *
+- * Why this exists:
+- *   OIDC SSO is cookie-based: silent SSO requires a logto session cookie in
+- *   the webview. Cookie can only be set via either (a) interactive sign-in on
+- *   logto's experience UI, or (b) this endpoint. winamz-launcher uses its own
+- *   login form (`/auth/headless-login` → password grant), which gives a token
+- *   but never establishes a sign-in session cookie. Without (b), every
+- *   embedded webview would force the user to re-authenticate.
++ * [winamz] Copy the cookie of an existing authenticated OIDC session into a trusted webview.
++ * A bearer credential must never create a new authentication event or extend its lifetime.
++ * JWTs issued before the trusted session UID claim was enabled require a new login/refresh.
+  */
+-
+ import { createLocalJWKSet, jwtVerify } from 'jose';
+ 
+ import RequestError from '#src/errors/RequestError/index.js';
+@@ -43,82 +11,106 @@ import assertThat from '#src/utils/assert-that.js';
+ 
+ import type { AnonymousRouter, RouterInitArgs } from '../types.js';
+ 
+-const SESSION_TTL_SECONDS = 14 * 24 * 60 * 60;
++const configuredValues = (name: string): string[] =>
++  (process.env[name] ?? '')
++    .split(',')
++    .map((value) => value.trim())
++    .filter(Boolean);
++
++export const setSilentGrantCorsHeaders = (ctx: import('koa').Context) => {
++  const origin = ctx.get('origin');
++  assertThat(
++    origin && configuredValues('WINAMZ_SILENT_GRANT_ORIGINS').includes(origin),
++    new RequestError({ code: 'auth.forbidden', status: 403 })
++  );
++  ctx.set('Access-Control-Allow-Origin', origin);
++  ctx.set('Access-Control-Allow-Credentials', 'true');
++  ctx.vary('Origin');
++  ctx.set('Cache-Control', 'no-store');
++};
+ 
+ export default function winamzSilentGrantRoute<T extends AnonymousRouter>(
+   ...[router, tenant]: RouterInitArgs<T>
+ ) {
+-  // CORS preflight — global koaCors does not enable credentials, so we set
+-  // Access-Control-Allow-Credentials: true locally for this endpoint to allow
+-  // launcher main webview's fetch with `credentials: 'include'`.
+-  const setCorsHeaders = (ctx: import('koa').Context) => {
+-    const origin = ctx.request.headers.origin;
+-    if (origin) {
+-      ctx.set('Access-Control-Allow-Origin', origin);
+-      ctx.set('Access-Control-Allow-Credentials', 'true');
+-      ctx.set('Vary', 'Origin');
+-    }
+-  };
+   router.options('/internal/silent-grant', async (ctx) => {
+-    setCorsHeaders(ctx);
++    setSilentGrantCorsHeaders(ctx);
+     ctx.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+     ctx.set('Access-Control-Allow-Headers', 'authorization, content-type');
+     ctx.status = 204;
+   });
+ 
+-  // Path is /internal/silent-grant; full URL is /api/internal/silent-grant
+-  // (parent app already mounted at /api, see Tenant.ts).
+   router.post('/internal/silent-grant', async (ctx) => {
+-    setCorsHeaders(ctx);
++    setSilentGrantCorsHeaders(ctx);
+     const token = extractBearerTokenFromHeaders(ctx.request.headers);
++    const unauthorized = () => new RequestError({ code: 'auth.unauthorized', status: 401 });
++    const audiences = configuredValues('WINAMZ_SILENT_GRANT_AUDIENCES');
++    const clients = configuredValues('WINAMZ_SILENT_GRANT_CLIENT_IDS');
++    assertThat(audiences.length > 0 && clients.length > 0, unauthorized());
+ 
+-    // Verify the token using this tenant's own JWKS — guarantees the token
+-    // was issued by THIS logto instance (i.e. caller already authenticated as `sub`)
+     const { publicJwks, issuer } = tenant.envSet.oidc;
+-    let sub: string | undefined;
++    let claims;
+     try {
+       const result = await jwtVerify(token, createLocalJWKSet({ keys: publicJwks }), {
+         issuer,
++        audience: audiences,
++        requiredClaims: ['sub', 'exp', 'iat', 'client_id', 'winamz_session_uid'],
+       });
+-      sub = typeof result.payload.sub === 'string' ? result.payload.sub : undefined;
++      assertThat(
++        result.protectedHeader.typ?.toLowerCase().replace(/^application\//, '') === 'at+jwt',
++        unauthorized()
++      );
++      claims = result.payload;
+     } catch {
+-      throw new RequestError({ code: 'auth.unauthorized', status: 401 });
++      throw unauthorized();
+     }
++    const { sub, client_id: clientId, winamz_session_uid: sessionUid } = claims;
++    assertThat(
++      typeof sub === 'string' &&
++        typeof clientId === 'string' &&
++        clients.includes(clientId) &&
++        sub !== clientId &&
++        typeof sessionUid === 'string',
++      unauthorized()
++    );
+ 
+-    assertThat(sub, new RequestError({ code: 'auth.jwt_sub_missing', status: 401 }));
++    // The allowlist grants this specific privilege; first-party status alone does not.
++    const application = await tenant.queries.applications.findApplicationById(clientId);
++    assertThat(
++      application && !application.isThirdParty && application.type !== 'MachineToMachine',
++      unauthorized()
++    );
++    const user = await tenant.queries.users.findUserById(sub);
++    assertThat(user && !user.isSuspended, unauthorized());
+ 
+-    // Build / reuse session via oidc-provider Session model (same one the
+-    // experience UI uses internally after sign-in). `Session.get(ctx)` will
+-    // create an empty session when the request has no cookie.
+-    const provider = tenant.provider;
+-    const session = await provider.Session.get(ctx);
++    // Bind to the actual login, including MFA, authentication time, authorizations and logout.
++    // No Session.get/create/save here: that could replace identities or reset authentication age.
++    const session = await tenant.provider.Session.findByUid(sessionUid);
++    const now = Math.floor(Date.now() / 1000);
++    assertThat(
++      session &&
++        session.accountId === sub &&
++        typeof session.exp === 'number' &&
++        session.exp > now &&
++        typeof session.loginTs === 'number' &&
++        session.loginTs <= now &&
++        session.grantIdFor(clientId),
++      unauthorized()
++    );
++    const ttlSeconds = session.exp - now;
++    // oidc-provider 9 is itself the Koa app and owns the cookie signing keys.
++    const providerContext = tenant.provider.createContext(ctx.req, ctx.res);
+     // eslint-disable-next-line @silverhand/fp/no-mutation
+-    session.accountId = sub;
+-    // eslint-disable-next-line @silverhand/fp/no-mutation
+-    session.loginTs = Math.floor(Date.now() / 1000);
+-    await session.save(SESSION_TTL_SECONDS);
+-
+-    // Write the logto session cookie. oidc-provider configures its own
+-    // cookieKeys (separate from koa app.keys), so we MUST use the cookies
+-    // instance attached to oidc-provider's koa app — otherwise the signature
+-    // (`.sig` cookie) won't verify on subsequent requests and logto will
+-    // treat the session as missing.
+-    const oidcCookies = provider.app.createContext(ctx.req, ctx.res).cookies;
+-    oidcCookies.set(provider.cookieName('session'), session.id, {
++    providerContext.cookies.secure = ctx.secure;
++    providerContext.cookies.set(tenant.provider.cookieName('session'), session.id, {
+       httpOnly: true,
++      secure: ctx.secure,
+       sameSite: 'lax',
+-      maxAge: SESSION_TTL_SECONDS * 1000,
++      ...(session.transient ? {} : { maxAge: ttlSeconds * 1000 }),
+       path: '/',
+       overwrite: true,
+       signed: true,
+     });
+-
+     ctx.status = 200;
+-    ctx.body = {
+-      ok: true,
+-      sub,
+-      sessionId: session.id,
+-      ttlSeconds: SESSION_TTL_SECONDS,
+-    };
++    ctx.body = { ok: true, sub, ttlSeconds };
+   });
+ }
+diff --git a/packages/core/src/routes/winamz/tenant-boundary.test.ts b/packages/core/src/routes/winamz/tenant-boundary.test.ts
+new file mode 100644
+index 000000000..d9a13d5c9
+--- /dev/null
++++ b/packages/core/src/routes/winamz/tenant-boundary.test.ts
+@@ -0,0 +1,67 @@
++import Koa from 'koa';
++import Router from 'koa-router';
++import request from 'supertest';
++
++import { MockTenant } from '#src/test-utils/tenant.js';
++import { createRequester } from '#src/utils/test-utils.js';
++
++import type { ManagementApiRouter } from '../types.js';
++
++import winamzAgentRoutes from './agents.js';
++import winamzAuditRoutes from './audit.js';
++import winamzGrantRoutes from './grants.js';
++import koaWinamzTenantBoundary from './tenant-boundary.js';
++
++describe('WinAMZ global extension tenant boundary', () => {
++  const requester = (tenantId: string) => {
++    const app = new Koa();
++    const router: ManagementApiRouter = new Router();
++    router.use('/winamz', koaWinamzTenantBoundary(tenantId));
++    router.get('/winamz/agents', (ctx) => {
++      ctx.body = [{ id: 'existing-default-agent' }];
++    });
++    router.post('/winamz/grants/:id/revoke', (ctx) => {
++      ctx.body = { success: true };
++    });
++    app.use(router.routes());
++    return request(app.callback());
++  };
++
++  it.each(['admin', 'another-tenant'])(
++    'denies extension reads and writes for %s',
++    async (id) => {
++      const client = requester(id);
++      expect((await client.get('/winamz/agents')).status).toBe(403);
++      expect((await client.post('/winamz/grants/grant-id/revoke')).status).toBe(
++        403
++      );
++    }
++  );
++
++  it('preserves default tenant reads and writes', async () => {
++    const client = requester('default');
++    expect((await client.get('/winamz/agents')).body).toEqual([
++      { id: 'existing-default-agent' },
++    ]);
++    expect((await client.post('/winamz/grants/grant-id/revoke')).body).toEqual({
++      success: true,
++    });
++  });
++
++  it.each([
++    ['/winamz/agents', winamzAgentRoutes],
++    ['/winamz/grants', winamzGrantRoutes],
++    ['/winamz/audit', winamzAuditRoutes],
++  ] as const)(
++    'protects the registered %s route before database access',
++    async (path, routes) => {
++      const tenant = new MockTenant();
++      const client = createRequester({
++        authedRoutes: routes,
++        tenantContext: tenant,
++      });
++      expect((await client.get(path)).status).toBe(403);
++      expect((await client.post(path).send({})).status).toBe(403);
++    }
++  );
++});
+diff --git a/packages/core/src/routes/winamz/tenant-boundary.ts b/packages/core/src/routes/winamz/tenant-boundary.ts
+new file mode 100644
+index 000000000..5fc4714fd
+--- /dev/null
++++ b/packages/core/src/routes/winamz/tenant-boundary.ts
+@@ -0,0 +1,14 @@
++import { defaultTenantId } from '@logto/schemas';
++import type { IMiddleware } from 'koa-router';
++
++import RequestError from '#src/errors/RequestError/index.js';
++
++/** Legacy WinAMZ tables belong to the default tenant and have no tenant_id column. */
++export default function koaWinamzTenantBoundary(tenantId: string): IMiddleware {
++  return async (_ctx, next) => {
++    if (tenantId !== defaultTenantId) {
++      throw new RequestError({ code: 'auth.forbidden', status: 403 });
++    }
++    return next();
++  };
++}
+diff --git a/packages/schemas/alterations/1.44.0-1789000001-winamz-extend-user-id-length.ts b/packages/schemas/alterations/1.44.0-1789000001-winamz-extend-user-id-length.ts
+new file mode 100644
+index 000000000..2c19a4c30
+--- /dev/null
++++ b/packages/schemas/alterations/1.44.0-1789000001-winamz-extend-user-id-length.ts
+@@ -0,0 +1,56 @@
++import { sql } from '@silverhand/slonik';
++
++import { up as createTables } from '../lib/migrations/winamz-001-create-tables.js';
++import { up as addForeignKeys } from '../lib/migrations/winamz-002-add-fk-constraints.js';
++import type { AlterationScript } from '../lib/types/alteration.js';
++
++const columns = [
++  ['winamz_agents', 'owner_user_id'],
++  ['winamz_agent_grants', 'user_id'],
++  ['winamz_agent_grants', 'revoked_by'],
++  ['winamz_audit_logs', 'user_id'],
++  ['winamz_audit_logs', 'actor_id'],
++] as const;
++
++/** Extend custom user references after upstream 1.44 widens users.id. */
++const alteration: AlterationScript = {
++  up: async (pool) => {
++    const { present } = await pool.one<{ present: number }>(sql`
++      select count(*)::integer as present from pg_class
++      where oid in (
++        to_regclass('winamz_agents'), to_regclass('winamz_agent_grants'),
++        to_regclass('winamz_audit_logs')
++      )
++    `);
++    if (present === 0) {
++      // Canonical creation also installs the extension indexes, RLS, and permissions.
++      await pool.query(sql.raw(createTables));
++      await pool.query(sql.raw(addForeignKeys));
++    } else if (present !== 3) {
++      throw new Error(
++        'Incomplete WinAMZ schema: restore missing extension tables before upgrading'
++      );
++    }
++
++    for (const [table, column] of columns) {
++      // eslint-disable-next-line no-await-in-loop -- DDL statements must run sequentially
++      await pool.query(sql`
++        alter table ${sql.identifier([table])}
++        alter column ${sql.identifier([column])} type varchar(128)
++      `);
++    }
++  },
++  down: async (pool) => {
++    // PostgreSQL rejects values exceeding 21 characters; never truncate identity references.
++    // Keep extension tables and all legacy data even when this alteration created them.
++    for (const [table, column] of columns) {
++      // eslint-disable-next-line no-await-in-loop -- DDL statements must run sequentially
++      await pool.query(sql`
++        alter table ${sql.identifier([table])}
++        alter column ${sql.identifier([column])} type varchar(21)
++      `);
++    }
++  },
++};
++
++export default alteration;
+diff --git a/packages/schemas/scripts/check-winamz-user-id-width.mjs b/packages/schemas/scripts/check-winamz-user-id-width.mjs
+new file mode 100644
+index 000000000..77f8820bd
+--- /dev/null
++++ b/packages/schemas/scripts/check-winamz-user-id-width.mjs
+@@ -0,0 +1,146 @@
++import assert from 'node:assert/strict';
++
++import { createPool, sql } from '@silverhand/slonik';
++
++// Only use a disposable database. All fixtures and DDL roll back, including on failure.
++const databaseUrl = process.env.WINAMZ_TEST_DATABASE_URL;
++assert.ok(
++  databaseUrl,
++  'Set WINAMZ_TEST_DATABASE_URL to a disposable PostgreSQL database'
++);
++const pool = await createPool(databaseUrl);
++const baseline = process.argv.includes('--baseline');
++const alteration = baseline
++  ? undefined
++  : (
++      await import(
++        '../alterations-js/1.44.0-1789000001-winamz-extend-user-id-length.js'
++      )
++    ).default;
++
++try {
++  await pool.connect(async (connection) => {
++    await connection.query(sql`BEGIN`);
++    try {
++      await connection.query(sql`CREATE SCHEMA winamz_id_width_test`);
++      await connection.query(
++        sql`SET LOCAL search_path TO winamz_id_width_test`
++      );
++      await connection.query(sql`
++        CREATE TABLE users (id varchar(128) PRIMARY KEY);
++        CREATE TABLE organizations (id varchar(21) PRIMARY KEY);
++        CREATE TABLE winamz_agents (
++          id varchar(21) PRIMARY KEY,
++          org_id varchar(21),
++          owner_user_id varchar(21),
++          CONSTRAINT fk_winamz_agents_owner FOREIGN KEY (owner_user_id)
++            REFERENCES users(id) ON DELETE SET NULL,
++          CONSTRAINT fk_winamz_agents_org FOREIGN KEY (org_id)
++            REFERENCES organizations(id) ON DELETE CASCADE
++        );
++        CREATE TABLE winamz_agent_grants (
++          id varchar(21) PRIMARY KEY,
++          user_id varchar(21) NOT NULL,
++          revoked_by varchar(21)
++        );
++        CREATE TABLE winamz_audit_logs (
++          id varchar(21) PRIMARY KEY,
++          user_id varchar(21),
++          actor_id varchar(21)
++        );
++        INSERT INTO users VALUES ('legacy-user');
++        INSERT INTO organizations VALUES ('legacy-org');
++        INSERT INTO winamz_agents VALUES ('legacy-agent', 'legacy-org', 'legacy-user');
++        INSERT INTO winamz_agent_grants VALUES ('legacy-grant', 'legacy-user', 'legacy-user');
++        INSERT INTO winamz_audit_logs VALUES ('legacy-audit', 'legacy-user', 'legacy-user');
++      `);
++
++      await alteration?.up(connection);
++      const userId = 'u'.repeat(128);
++      await connection.query(sql`INSERT INTO users VALUES (${userId})`);
++      await connection.query(
++        sql`INSERT INTO winamz_agents VALUES ('long-agent', 'legacy-org', ${userId})`
++      );
++      await connection.query(
++        sql`INSERT INTO winamz_agent_grants VALUES ('long-grant', ${userId}, ${userId})`
++      );
++      await connection.query(
++        sql`INSERT INTO winamz_audit_logs VALUES ('long-audit', ${userId}, ${userId})`
++      );
++      const legacy = await connection.one(sql`
++        SELECT a.owner_user_id, g.user_id, g.revoked_by, l.user_id AS audit_user_id, l.actor_id
++        FROM winamz_agents a, winamz_agent_grants g, winamz_audit_logs l
++        WHERE a.id = 'legacy-agent' AND g.id = 'legacy-grant' AND l.id = 'legacy-audit'
++      `);
++      assert.deepEqual(Object.values(legacy), Array(5).fill('legacy-user'));
++
++      // Widening must retain the owner FK and its delete action.
++      await connection.query(sql`DELETE FROM users WHERE id = ${userId}`);
++      assert.equal(
++        (
++          await connection.one(
++            sql`SELECT owner_user_id FROM winamz_agents WHERE id = 'long-agent'`
++          )
++        ).owner_user_id,
++        null
++      );
++      await connection.query(sql`SAVEPOINT rollback_check`);
++      await assert.rejects(alteration.down(connection), /value too long/);
++      await connection.query(sql`ROLLBACK TO SAVEPOINT rollback_check`);
++      assert.equal(
++        (
++          await connection.one(
++            sql`SELECT user_id FROM winamz_agent_grants WHERE id = 'long-grant'`
++          )
++        ).user_id,
++        userId
++      );
++
++      await connection.query(
++        sql`DELETE FROM winamz_agent_grants WHERE id = 'long-grant'`
++      );
++      await connection.query(
++        sql`DELETE FROM winamz_audit_logs WHERE id = 'long-audit'`
++      );
++      await alteration.down(connection);
++      const widths = await connection.any(sql`
++        SELECT character_maximum_length FROM information_schema.columns
++        WHERE table_schema = 'winamz_id_width_test'
++          AND column_name IN ('owner_user_id', 'user_id', 'revoked_by', 'actor_id')
++      `);
++      assert.equal(widths.length, 5);
++      assert.ok(
++        widths.every(({ character_maximum_length: width }) => width === 21)
++      );
++
++      // Fresh installations must get the canonical extension schema, not just widened columns.
++      await connection.query(
++        sql`DROP TABLE winamz_audit_logs, winamz_agent_grants, winamz_agents`
++      );
++      await alteration.up(connection);
++      await connection.query(sql`INSERT INTO users VALUES (${userId})`);
++      await connection.query(sql`
++        INSERT INTO winamz_agents (id, name, type, org_id, owner_user_id)
++        VALUES ('fresh-agent', 'Fresh', 'personal', 'legacy-org', ${userId})
++      `);
++      await connection.query(
++        sql`DELETE FROM organizations WHERE id = 'legacy-org'`
++      );
++      assert.equal(
++        (
++          await connection.one(
++            sql`SELECT count(*)::integer AS count FROM winamz_agents`
++          )
++        ).count,
++        0
++      );
++    } finally {
++      await connection.query(sql`ROLLBACK`);
++    }
++  });
++  console.log(
++    'PASS: 128-character references, legacy data, owner FK, safe rollback, fresh schema'
++  );
++} finally {
++  await pool.end();
++}
+-- 
+2.50.1 (Apple Git-155)
+

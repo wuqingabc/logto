@@ -4,8 +4,7 @@
 
 export UPSTREAM_REPO="https://github.com/logto-io/logto"
 export UPSTREAM_DIR="logto"
-# 当前 pin 到 merge base commit（v1.37.1 之后 29 个 upstream commit）。
-# 升级到 tagged release（如 v1.37.1）时调 patch-rebase.sh，可能需手工 conflict resolution。
-export UPSTREAM_VERSION="69d3eb6bdaa6dd18c313da8a94487da294c1d9d4"
+# 官方稳定版本；gitlink 指向原始版本，WinAMZ 定制由 patches/series 重放。
+export UPSTREAM_VERSION="v1.44.0"
 export IMAGE_NAME="logto"
 export DOCKERFILE="docker/Dockerfile.winamz"

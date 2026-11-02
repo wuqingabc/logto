@@ -1,8 +1,8 @@
-From e0d3e2d1b8aa0ce16a88c1079b97d71bf81df9c3 Mon Sep 17 00:00:00 2001
+From 839fd188ac6fc0cfafc8efaab75d89bb2f863451 Mon Sep 17 00:00:00 2001
 From: wuqingabc <wuqingabc@hotmail.com>
 Date: Wed, 11 Mar 2026 15:01:12 +0800
-Subject: [PATCH 1/9] feat: add WinAMZ AI agent authorization platform (A-class
- new files)
+Subject: [PATCH 01/11] feat: add WinAMZ AI agent authorization platform
+ (A-class new files)
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
@@ -2480,5 +2480,5 @@ index 000000000..fc3a1f4e2
 +  createdAt: Date;
 +};
 -- 
-2.54.0
+2.50.1 (Apple Git-155)
 

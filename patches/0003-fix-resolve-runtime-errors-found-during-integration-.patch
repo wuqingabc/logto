@@ -1,0 +1,1180 @@
+From 40559f2bb227529c60b9be0675f8770e220117e0 Mon Sep 17 00:00:00 2001
+From: wuqingabc <wuqingabc@hotmail.com>
+Date: Wed, 11 Mar 2026 15:44:57 +0800
+Subject: [PATCH 03/11] fix: resolve runtime errors found during integration
+ testing
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Four categories of bugs fixed (all consistent with original design):
+
+1. Slonik sql tagged template literal (agents.ts, grants.ts, audit.ts)
+   - Rewrote all raw SQL strings to use sql`` tagged template literals
+   - Required by @silverhand/slonik which rejects raw string queries
+   - Behavior unchanged; dynamic WHERE uses sql.join(), arrays use sql.array()
+
+2. koaPagination totalCount pattern (agents.ts, grants.ts, audit.ts)
+   - Backend: set ctx.pagination.totalCount instead of returning {total, items}
+   - Frontend: read Total-Number response header instead of response.json().total
+   - Follows Logto pagination convention; response body is now a plain array
+
+3. Console API path prefix fix (Agents.tsx, Grants.tsx, Audit.tsx)
+   - Changed winamz/agents → api/winamz/agents (and grants, audit)
+   - Console resolves paths against tenantEndpoint (http://localhost:4001/)
+   - All three pages now reach the correct management API endpoint
+
+4. DB migration: add RLS + GRANT statements (winamz-001-create-tables.ts)
+   - Added ENABLE ROW LEVEL SECURITY + permissive policy on all 3 tables
+   - Added GRANT SELECT/INSERT/UPDATE/DELETE to logto_tenant_logto role
+   - Without this, fresh deployments fail at startup (RLS check) and at
+     runtime (permission denied for tenant DB user)
+   - Empty-table placeholder: replaced DynamicT (missing i18n key) with
+     plain string literals
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+---
+ packages/console/src/pages/winamz/Agents.tsx  |  19 +-
+ packages/console/src/pages/winamz/Audit.tsx   |  13 +-
+ packages/console/src/pages/winamz/Grants.tsx  |  15 +-
+ packages/core/src/routes/winamz/agents.ts     | 299 +++++++++---------
+ packages/core/src/routes/winamz/audit.ts      | 148 ++++-----
+ packages/core/src/routes/winamz/grants.ts     | 242 +++++++-------
+ .../migrations/winamz-001-create-tables.ts    |  24 ++
+ 7 files changed, 377 insertions(+), 383 deletions(-)
+
+diff --git a/packages/console/src/pages/winamz/Agents.tsx b/packages/console/src/pages/winamz/Agents.tsx
+index 812b92063..14894b48b 100644
+--- a/packages/console/src/pages/winamz/Agents.tsx
++++ b/packages/console/src/pages/winamz/Agents.tsx
+@@ -9,7 +9,6 @@ import { useCallback, useEffect, useState } from 'react';
+ import { useTranslation } from 'react-i18next';
+ 
+ import Button from '@/ds-components/Button';
+-import DynamicT from '@/ds-components/DynamicT';
+ import Search from '@/ds-components/Search';
+ import Table from '@/ds-components/Table';
+ import Tag from '@/ds-components/Tag';
+@@ -51,11 +50,11 @@ function WinamzAgents() {
+         page: String(page),
+         page_size: String(pageSize),
+       });
+-      const response = await api
+-        .get(`winamz/agents?${params.toString()}`)
+-        .json<{ total: number; items: Agent[] }>();
+-      setAgents(response.items);
+-      setTotal(response.total);
++      const response = await api.get(`api/winamz/agents?${params.toString()}`);
++      const items = await response.json<Agent[]>();
++      const totalCount = Number(response.headers.get('Total-Number') ?? '0');
++      setAgents(items);
++      setTotal(totalCount);
+     } finally {
+       setIsLoading(false);
+     }
+@@ -67,7 +66,7 @@ function WinamzAgents() {
+ 
+   const handleApprove = useCallback(
+     async (agentId: string) => {
+-      await api.post(`winamz/agents/${agentId}/approve`).json();
++      await api.post(`api/winamz/agents/${agentId}/approve`).json();
+       void fetchAgents();
+     },
+     [api, fetchAgents]
+@@ -75,7 +74,7 @@ function WinamzAgents() {
+ 
+   const handleSuspend = useCallback(
+     async (agentId: string) => {
+-      await api.post(`winamz/agents/${agentId}/suspend`).json();
++      await api.post(`api/winamz/agents/${agentId}/suspend`).json();
+       void fetchAgents();
+     },
+     [api, fetchAgents]
+@@ -83,7 +82,7 @@ function WinamzAgents() {
+ 
+   const handleRestore = useCallback(
+     async (agentId: string) => {
+-      await api.post(`winamz/agents/${agentId}/restore`).json();
++      await api.post(`api/winamz/agents/${agentId}/restore`).json();
+       void fetchAgents();
+     },
+     [api, fetchAgents]
+@@ -194,7 +193,7 @@ function WinamzAgents() {
+           pageSize,
+           onChange: setPage,
+         }}
+-        placeholder={<DynamicT forKey="general.no_results_found" />}
++        placeholder="No agents found"
+       />
+     </div>
+   );
+diff --git a/packages/console/src/pages/winamz/Audit.tsx b/packages/console/src/pages/winamz/Audit.tsx
+index 9859185c4..b21c4f4a1 100644
+--- a/packages/console/src/pages/winamz/Audit.tsx
++++ b/packages/console/src/pages/winamz/Audit.tsx
+@@ -7,7 +7,6 @@
+ 
+ import { useCallback, useEffect, useState } from 'react';
+ 
+-import DynamicT from '@/ds-components/DynamicT';
+ import Search from '@/ds-components/Search';
+ import Table from '@/ds-components/Table';
+ import Tag from '@/ds-components/Tag';
+@@ -55,11 +54,11 @@ function WinamzAudit() {
+       if (keyword) {
+         params.set('agent_id', keyword);
+       }
+-      const response = await api
+-        .get(`winamz/audit?${params.toString()}`)
+-        .json<{ total: number; data: AuditLog[] }>();
+-      setLogs(response.data);
+-      setTotal(response.total);
++      const response = await api.get(`api/winamz/audit?${params.toString()}`);
++      const items = await response.json<AuditLog[]>();
++      const totalCount = Number(response.headers.get('Total-Number') ?? '0');
++      setLogs(items);
++      setTotal(totalCount);
+     } finally {
+       setIsLoading(false);
+     }
+@@ -165,7 +164,7 @@ function WinamzAudit() {
+           pageSize,
+           onChange: setPage,
+         }}
+-        placeholder={<DynamicT forKey="general.no_results_found" />}
++        placeholder="No audit logs found"
+       />
+     </div>
+   );
+diff --git a/packages/console/src/pages/winamz/Grants.tsx b/packages/console/src/pages/winamz/Grants.tsx
+index cf235ec61..4a956be38 100644
+--- a/packages/console/src/pages/winamz/Grants.tsx
++++ b/packages/console/src/pages/winamz/Grants.tsx
+@@ -8,7 +8,6 @@
+ import { useCallback, useEffect, useState } from 'react';
+ 
+ import Button from '@/ds-components/Button';
+-import DynamicT from '@/ds-components/DynamicT';
+ import Search from '@/ds-components/Search';
+ import Table from '@/ds-components/Table';
+ import Tag from '@/ds-components/Tag';
+@@ -45,11 +44,11 @@ function WinamzGrants() {
+         page_size: String(pageSize),
+         active: showRevoked ? 'false' : 'true',
+       });
+-      const response = await api
+-        .get(`winamz/grants?${params.toString()}`)
+-        .json<{ total: number; items: Grant[] }>();
+-      setGrants(response.items);
+-      setTotal(response.total);
++      const response = await api.get(`api/winamz/grants?${params.toString()}`);
++      const items = await response.json<Grant[]>();
++      const totalCount = Number(response.headers.get('Total-Number') ?? '0');
++      setGrants(items);
++      setTotal(totalCount);
+     } finally {
+       setIsLoading(false);
+     }
+@@ -63,7 +62,7 @@ function WinamzGrants() {
+     async (grantId: string) => {
+       const reason = window.prompt('Reason for revocation (optional):') ?? undefined;
+       await api
+-        .post(`winamz/grants/${grantId}/revoke`, { json: { reason } })
++        .post(`api/winamz/grants/${grantId}/revoke`, { json: { reason } })
+         .json();
+       void fetchGrants();
+     },
+@@ -172,7 +171,7 @@ function WinamzGrants() {
+           pageSize,
+           onChange: setPage,
+         }}
+-        placeholder={<DynamicT forKey="general.no_results_found" />}
++        placeholder="No grants found"
+       />
+     </div>
+   );
+diff --git a/packages/core/src/routes/winamz/agents.ts b/packages/core/src/routes/winamz/agents.ts
+index 9e6a8ddef..cfe2deb7b 100644
+--- a/packages/core/src/routes/winamz/agents.ts
++++ b/packages/core/src/routes/winamz/agents.ts
+@@ -6,6 +6,7 @@
+  */
+ 
+ import { generateStandardId } from '@logto/shared';
++import { sql } from '@silverhand/slonik';
+ import { z } from 'zod';
+ 
+ import koaGuard from '#src/middleware/koa-guard.js';
+@@ -39,6 +40,25 @@ const agentResponseGuard = z.object({
+   updatedAt: z.string(),
+ });
+ 
++type AgentRow = {
++  id: string;
++  name: string;
++  type: 'personal' | 'org';
++  orgId: string;
++  ownerUserId: string | null;
++  logtoAppId: string | null;
++  status: 'pending_review' | 'approved' | 'rejected' | 'suspended';
++  requestedScopes: string[];
++  createdAt: Date;
++  updatedAt: Date;
++};
++
++const toResponse = (row: AgentRow) => ({
++  ...row,
++  createdAt: new Date(row.createdAt).toISOString(),
++  updatedAt: new Date(row.updatedAt).toISOString(),
++});
++
+ export default function winamzAgentRoutes<T extends ManagementApiRouter>(
+   ...[router, { queries }]: RouterInitArgs<T>
+ ) {
+@@ -54,56 +74,45 @@ export default function winamzAgentRoutes<T extends ManagementApiRouter>(
+         status: z.enum(['pending_review', 'approved', 'rejected', 'suspended']).optional(),
+         type: z.enum(['personal', 'org']).optional(),
+       }),
+-      response: z.object({ total: z.number(), items: agentResponseGuard.array() }),
++      response: agentResponseGuard.array(),
+       status: [200],
+     }),
+     async (ctx, next) => {
+       const { limit, offset } = ctx.pagination;
+       const { orgId, status, type } = ctx.guard.query;
+ 
+-      const conditions: string[] = [];
+-      const params: unknown[] = [];
+-
+-      if (orgId) {
+-        params.push(orgId);
+-        conditions.push(`org_id = $${params.length}`);
+-      }
+-      if (status) {
+-        params.push(status);
+-        conditions.push(`status = $${params.length}`);
+-      }
+-      if (type) {
+-        params.push(type);
+-        conditions.push(`type = $${params.length}`);
+-      }
+-
+-      const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+-
+-      const countResult = await pool.one<{ count: string }>(
+-        `SELECT COUNT(*) as count FROM winamz_agents ${where}`,
+-        params
+-      );
+-
+-      params.push(limit, offset);
+-      const rows = await pool.any(
+-        `SELECT id, name, type, org_id as "orgId", owner_user_id as "ownerUserId",
+-                logto_app_id as "logtoAppId", status, requested_scopes as "requestedScopes",
+-                created_at as "createdAt", updated_at as "updatedAt"
+-         FROM winamz_agents ${where}
+-         ORDER BY created_at DESC
+-         LIMIT $${params.length - 1} OFFSET $${params.length}`,
+-        params
+-      );
+-
+-      ctx.body = {
+-        total: Number(countResult.count),
+-        items: rows.map((row) => ({
+-          ...row,
+-          createdAt: new Date(row.createdAt as string).toISOString(),
+-          updatedAt: new Date(row.updatedAt as string).toISOString(),
+-        })),
+-      };
+-
++      const conditions = [
++        orgId && sql`org_id = ${orgId}`,
++        status && sql`status = ${status}`,
++        type && sql`type = ${type}`,
++      ].filter(Boolean);
++
++      const whereClause =
++        conditions.length > 0
++          ? sql`WHERE ${sql.join(conditions, sql` AND `)}`
++          : sql``;
++
++      const [{ count }, rows] = await Promise.all([
++        pool.one<{ count: string }>(
++          sql`SELECT COUNT(*) as count FROM winamz_agents ${whereClause}`
++        ),
++        pool.any<AgentRow>(
++          sql`SELECT id, name, type,
++                     org_id as "orgId",
++                     owner_user_id as "ownerUserId",
++                     logto_app_id as "logtoAppId",
++                     status,
++                     requested_scopes as "requestedScopes",
++                     created_at as "createdAt",
++                     updated_at as "updatedAt"
++              FROM winamz_agents ${whereClause}
++              ORDER BY created_at DESC
++              LIMIT ${limit} OFFSET ${offset}`
++        ),
++      ]);
++
++      ctx.pagination.totalCount = Number(count);
++      ctx.body = rows.map(toResponse);
+       return next();
+     }
+   );
+@@ -119,12 +128,16 @@ export default function winamzAgentRoutes<T extends ManagementApiRouter>(
+     async (ctx, next) => {
+       const { id } = ctx.guard.params;
+ 
+-      const row = await pool.maybeOne(
+-        `SELECT id, name, type, org_id as "orgId", owner_user_id as "ownerUserId",
+-                logto_app_id as "logtoAppId", status, requested_scopes as "requestedScopes",
+-                created_at as "createdAt", updated_at as "updatedAt"
+-         FROM winamz_agents WHERE id = $1`,
+-        [id]
++      const row = await pool.maybeOne<AgentRow>(
++        sql`SELECT id, name, type,
++                   org_id as "orgId",
++                   owner_user_id as "ownerUserId",
++                   logto_app_id as "logtoAppId",
++                   status,
++                   requested_scopes as "requestedScopes",
++                   created_at as "createdAt",
++                   updated_at as "updatedAt"
++            FROM winamz_agents WHERE id = ${id}`
+       );
+ 
+       if (!row) {
+@@ -132,12 +145,7 @@ export default function winamzAgentRoutes<T extends ManagementApiRouter>(
+         return next();
+       }
+ 
+-      ctx.body = {
+-        ...row,
+-        createdAt: new Date(row.createdAt as string).toISOString(),
+-        updatedAt: new Date(row.updatedAt as string).toISOString(),
+-      };
+-
++      ctx.body = toResponse(row);
+       return next();
+     }
+   );
+@@ -155,23 +163,27 @@ export default function winamzAgentRoutes<T extends ManagementApiRouter>(
+       const id = generateStandardId();
+       const now = new Date();
+ 
+-      const row = await pool.one(
+-        `INSERT INTO winamz_agents
+-           (id, name, type, org_id, owner_user_id, requested_scopes, created_at, updated_at)
+-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+-         RETURNING id, name, type, org_id as "orgId", owner_user_id as "ownerUserId",
+-                   logto_app_id as "logtoAppId", status, requested_scopes as "requestedScopes",
+-                   created_at as "createdAt", updated_at as "updatedAt"`,
+-        [id, name, type, orgId, ownerUserId ?? null, requestedScopes, now, now]
++      const row = await pool.one<AgentRow>(
++        sql`INSERT INTO winamz_agents
++              (id, name, type, org_id, owner_user_id, requested_scopes, created_at, updated_at)
++            VALUES (
++              ${id}, ${name}, ${type}, ${orgId},
++              ${ownerUserId ?? null},
++              ${sql.array(requestedScopes, 'text')},
++              ${now.toISOString()}, ${now.toISOString()}
++            )
++            RETURNING id, name, type,
++                      org_id as "orgId",
++                      owner_user_id as "ownerUserId",
++                      logto_app_id as "logtoAppId",
++                      status,
++                      requested_scopes as "requestedScopes",
++                      created_at as "createdAt",
++                      updated_at as "updatedAt"`
+       );
+ 
+       ctx.status = 201;
+-      ctx.body = {
+-        ...row,
+-        createdAt: new Date(row.createdAt as string).toISOString(),
+-        updatedAt: new Date(row.updatedAt as string).toISOString(),
+-      };
+-
++      ctx.body = toResponse(row);
+       return next();
+     }
+   );
+@@ -187,27 +199,27 @@ export default function winamzAgentRoutes<T extends ManagementApiRouter>(
+     }),
+     async (ctx, next) => {
+       const { id } = ctx.guard.params;
+-      const updates = ctx.guard.body;
+-
+-      const setClauses: string[] = ['updated_at = NOW()'];
+-      const params: unknown[] = [id];
+-
+-      if (updates.name !== undefined) {
+-        params.push(updates.name);
+-        setClauses.push(`name = $${params.length}`);
+-      }
+-      if (updates.requestedScopes !== undefined) {
+-        params.push(updates.requestedScopes);
+-        setClauses.push(`requested_scopes = $${params.length}`);
+-      }
+-
+-      const row = await pool.maybeOne(
+-        `UPDATE winamz_agents SET ${setClauses.join(', ')}
+-         WHERE id = $1
+-         RETURNING id, name, type, org_id as "orgId", owner_user_id as "ownerUserId",
+-                   logto_app_id as "logtoAppId", status, requested_scopes as "requestedScopes",
+-                   created_at as "createdAt", updated_at as "updatedAt"`,
+-        params
++      const { name, requestedScopes } = ctx.guard.body;
++
++      const setClauses = [
++        sql`updated_at = NOW()`,
++        name !== undefined && sql`name = ${name}`,
++        requestedScopes !== undefined &&
++          sql`requested_scopes = ${sql.array(requestedScopes, 'text')}`,
++      ].filter(Boolean);
++
++      const row = await pool.maybeOne<AgentRow>(
++        sql`UPDATE winamz_agents
++            SET ${sql.join(setClauses, sql`, `)}
++            WHERE id = ${id}
++            RETURNING id, name, type,
++                      org_id as "orgId",
++                      owner_user_id as "ownerUserId",
++                      logto_app_id as "logtoAppId",
++                      status,
++                      requested_scopes as "requestedScopes",
++                      created_at as "createdAt",
++                      updated_at as "updatedAt"`
+       );
+ 
+       if (!row) {
+@@ -215,12 +227,7 @@ export default function winamzAgentRoutes<T extends ManagementApiRouter>(
+         return next();
+       }
+ 
+-      ctx.body = {
+-        ...row,
+-        createdAt: new Date(row.createdAt as string).toISOString(),
+-        updatedAt: new Date(row.updatedAt as string).toISOString(),
+-      };
+-
++      ctx.body = toResponse(row);
+       return next();
+     }
+   );
+@@ -235,13 +242,11 @@ export default function winamzAgentRoutes<T extends ManagementApiRouter>(
+     async (ctx, next) => {
+       const { id } = ctx.guard.params;
+ 
+-      const result = await pool.maybeOne(
+-        `DELETE FROM winamz_agents WHERE id = $1 RETURNING id`,
+-        [id]
++      const result = await pool.maybeOne<{ id: string }>(
++        sql`DELETE FROM winamz_agents WHERE id = ${id} RETURNING id`
+       );
+ 
+       ctx.status = result ? 204 : 404;
+-
+       return next();
+     }
+   );
+@@ -257,31 +262,29 @@ export default function winamzAgentRoutes<T extends ManagementApiRouter>(
+     async (ctx, next) => {
+       const { id } = ctx.guard.params;
+ 
+-      const row = await pool.maybeOne(
+-        `UPDATE winamz_agents
+-         SET status = 'approved', updated_at = NOW()
+-         WHERE id = $1 AND status = 'pending_review'
+-         RETURNING id, name, type, org_id as "orgId", owner_user_id as "ownerUserId",
+-                   logto_app_id as "logtoAppId", status, requested_scopes as "requestedScopes",
+-                   created_at as "createdAt", updated_at as "updatedAt"`,
+-        [id]
++      const row = await pool.maybeOne<AgentRow>(
++        sql`UPDATE winamz_agents
++            SET status = 'approved', updated_at = NOW()
++            WHERE id = ${id} AND status = 'pending_review'
++            RETURNING id, name, type,
++                      org_id as "orgId",
++                      owner_user_id as "ownerUserId",
++                      logto_app_id as "logtoAppId",
++                      status,
++                      requested_scopes as "requestedScopes",
++                      created_at as "createdAt",
++                      updated_at as "updatedAt"`
+       );
+ 
+       if (!row) {
+-        const existing = await pool.maybeOne(
+-          `SELECT id FROM winamz_agents WHERE id = $1`,
+-          [id]
++        const existing = await pool.maybeOne<{ id: string }>(
++          sql`SELECT id FROM winamz_agents WHERE id = ${id}`
+         );
+         ctx.status = existing ? 422 : 404;
+         return next();
+       }
+ 
+-      ctx.body = {
+-        ...row,
+-        createdAt: new Date(row.createdAt as string).toISOString(),
+-        updatedAt: new Date(row.updatedAt as string).toISOString(),
+-      };
+-
++      ctx.body = toResponse(row);
+       return next();
+     }
+   );
+@@ -297,14 +300,18 @@ export default function winamzAgentRoutes<T extends ManagementApiRouter>(
+     async (ctx, next) => {
+       const { id } = ctx.guard.params;
+ 
+-      const row = await pool.maybeOne(
+-        `UPDATE winamz_agents
+-         SET status = 'suspended', updated_at = NOW()
+-         WHERE id = $1
+-         RETURNING id, name, type, org_id as "orgId", owner_user_id as "ownerUserId",
+-                   logto_app_id as "logtoAppId", status, requested_scopes as "requestedScopes",
+-                   created_at as "createdAt", updated_at as "updatedAt"`,
+-        [id]
++      const row = await pool.maybeOne<AgentRow>(
++        sql`UPDATE winamz_agents
++            SET status = 'suspended', updated_at = NOW()
++            WHERE id = ${id}
++            RETURNING id, name, type,
++                      org_id as "orgId",
++                      owner_user_id as "ownerUserId",
++                      logto_app_id as "logtoAppId",
++                      status,
++                      requested_scopes as "requestedScopes",
++                      created_at as "createdAt",
++                      updated_at as "updatedAt"`
+       );
+ 
+       if (!row) {
+@@ -312,19 +319,12 @@ export default function winamzAgentRoutes<T extends ManagementApiRouter>(
+         return next();
+       }
+ 
+-      // Audit log
+       await pool.query(
+-        `INSERT INTO winamz_audit_logs (id, event_type, agent_id, org_id, created_at)
+-         VALUES ($1, 'agent_suspended', $2, $3, NOW())`,
+-        [generateStandardId(), id, row.orgId]
++        sql`INSERT INTO winamz_audit_logs (id, event_type, agent_id, org_id, created_at)
++            VALUES (${generateStandardId()}, 'agent_suspended', ${id}, ${row.orgId}, NOW())`
+       );
+ 
+-      ctx.body = {
+-        ...row,
+-        createdAt: new Date(row.createdAt as string).toISOString(),
+-        updatedAt: new Date(row.updatedAt as string).toISOString(),
+-      };
+-
++      ctx.body = toResponse(row);
+       return next();
+     }
+   );
+@@ -340,14 +340,18 @@ export default function winamzAgentRoutes<T extends ManagementApiRouter>(
+     async (ctx, next) => {
+       const { id } = ctx.guard.params;
+ 
+-      const row = await pool.maybeOne(
+-        `UPDATE winamz_agents
+-         SET status = 'approved', updated_at = NOW()
+-         WHERE id = $1 AND status = 'suspended'
+-         RETURNING id, name, type, org_id as "orgId", owner_user_id as "ownerUserId",
+-                   logto_app_id as "logtoAppId", status, requested_scopes as "requestedScopes",
+-                   created_at as "createdAt", updated_at as "updatedAt"`,
+-        [id]
++      const row = await pool.maybeOne<AgentRow>(
++        sql`UPDATE winamz_agents
++            SET status = 'approved', updated_at = NOW()
++            WHERE id = ${id} AND status = 'suspended'
++            RETURNING id, name, type,
++                      org_id as "orgId",
++                      owner_user_id as "ownerUserId",
++                      logto_app_id as "logtoAppId",
++                      status,
++                      requested_scopes as "requestedScopes",
++                      created_at as "createdAt",
++                      updated_at as "updatedAt"`
+       );
+ 
+       if (!row) {
+@@ -355,12 +359,7 @@ export default function winamzAgentRoutes<T extends ManagementApiRouter>(
+         return next();
+       }
+ 
+-      ctx.body = {
+-        ...row,
+-        createdAt: new Date(row.createdAt as string).toISOString(),
+-        updatedAt: new Date(row.updatedAt as string).toISOString(),
+-      };
+-
++      ctx.body = toResponse(row);
+       return next();
+     }
+   );
+diff --git a/packages/core/src/routes/winamz/audit.ts b/packages/core/src/routes/winamz/audit.ts
+index d9ce6ce1e..7d0dd59d0 100644
+--- a/packages/core/src/routes/winamz/audit.ts
++++ b/packages/core/src/routes/winamz/audit.ts
+@@ -6,6 +6,7 @@
+  */
+ 
+ import { generateStandardId } from '@logto/shared';
++import { sql } from '@silverhand/slonik';
+ import { z } from 'zod';
+ 
+ import koaGuard from '#src/middleware/koa-guard.js';
+@@ -25,6 +26,30 @@ const auditLogResponseGuard = z.object({
+   createdAt: z.string(),
+ });
+ 
++type AuditRow = {
++  id: string;
++  eventType: string;
++  orgId: string | null;
++  agentId: string | null;
++  userId: string | null;
++  actorId: string | null;
++  resource: string | null;
++  metadata: Record<string, unknown> | null;
++  createdAt: Date;
++};
++
++const auditSelectCols = sql`
++  id,
++  event_type as "eventType",
++  org_id as "orgId",
++  agent_id as "agentId",
++  user_id as "userId",
++  actor_id as "actorId",
++  resource,
++  metadata,
++  created_at as "createdAt"
++`;
++
+ export default function winamzAuditRoutes<T extends ManagementApiRouter>(
+   ...[router, { queries }]: RouterInitArgs<T>
+ ) {
+@@ -43,70 +68,44 @@ export default function winamzAuditRoutes<T extends ManagementApiRouter>(
+         from: z.string().optional(),
+         to: z.string().optional(),
+       }),
+-      response: z.object({
+-        total: z.number(),
+-        data: auditLogResponseGuard.array(),
+-      }),
++      response: auditLogResponseGuard.array(),
+       status: [200],
+     }),
+     async (ctx, next) => {
+       const { limit, offset } = ctx.pagination;
+       const { agentId, userId, orgId, eventType, from, to } = ctx.guard.query;
+ 
+-      const conditions: string[] = [];
+-      const params: unknown[] = [];
+-
+-      if (agentId) {
+-        params.push(agentId);
+-        conditions.push(`agent_id = $${params.length}`);
+-      }
+-      if (userId) {
+-        params.push(userId);
+-        conditions.push(`user_id = $${params.length}`);
+-      }
+-      if (orgId) {
+-        params.push(orgId);
+-        conditions.push(`org_id = $${params.length}`);
+-      }
+-      if (eventType) {
+-        params.push(eventType);
+-        conditions.push(`event_type = $${params.length}`);
+-      }
+-      if (from) {
+-        params.push(new Date(from));
+-        conditions.push(`created_at >= $${params.length}`);
+-      }
+-      if (to) {
+-        params.push(new Date(to));
+-        conditions.push(`created_at <= $${params.length}`);
+-      }
+-
+-      const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+-
+-      const countResult = await pool.one<{ count: string }>(
+-        `SELECT COUNT(*) as count FROM winamz_audit_logs ${where}`,
+-        params
+-      );
+-
+-      params.push(limit, offset);
+-      const rows = await pool.any(
+-        `SELECT id, event_type as "eventType", org_id as "orgId", agent_id as "agentId",
+-                user_id as "userId", actor_id as "actorId", resource, metadata,
+-                created_at as "createdAt"
+-         FROM winamz_audit_logs ${where}
+-         ORDER BY created_at DESC
+-         LIMIT $${params.length - 1} OFFSET $${params.length}`,
+-        params
+-      );
+-
+-      ctx.body = {
+-        total: Number(countResult.count),
+-        data: rows.map((row) => ({
+-          ...row,
+-          createdAt: new Date(row.createdAt as string).toISOString(),
+-        })),
+-      };
+-
++      const conditions = [
++        agentId && sql`agent_id = ${agentId}`,
++        userId && sql`user_id = ${userId}`,
++        orgId && sql`org_id = ${orgId}`,
++        eventType && sql`event_type = ${eventType}`,
++        from && sql`created_at >= ${from}`,
++        to && sql`created_at <= ${to}`,
++      ].filter(Boolean);
++
++      const whereClause =
++        conditions.length > 0
++          ? sql`WHERE ${sql.join(conditions, sql` AND `)}`
++          : sql``;
++
++      const [{ count }, rows] = await Promise.all([
++        pool.one<{ count: string }>(
++          sql`SELECT COUNT(*) as count FROM winamz_audit_logs ${whereClause}`
++        ),
++        pool.any<AuditRow>(
++          sql`SELECT ${auditSelectCols}
++              FROM winamz_audit_logs ${whereClause}
++              ORDER BY created_at DESC
++              LIMIT ${limit} OFFSET ${offset}`
++        ),
++      ]);
++
++      ctx.pagination.totalCount = Number(count);
++      ctx.body = rows.map((row) => ({
++        ...row,
++        createdAt: new Date(row.createdAt).toISOString(),
++      }));
+       return next();
+     }
+   );
+@@ -131,31 +130,20 @@ export default function winamzAuditRoutes<T extends ManagementApiRouter>(
+       const { eventType, orgId, agentId, userId, actorId, resource, metadata } = ctx.guard.body;
+       const id = generateStandardId();
+ 
+-      const row = await pool.one(
+-        `INSERT INTO winamz_audit_logs
+-           (id, event_type, org_id, agent_id, user_id, actor_id, resource, metadata)
+-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+-         RETURNING id, event_type as "eventType", org_id as "orgId", agent_id as "agentId",
+-                   user_id as "userId", actor_id as "actorId", resource, metadata,
+-                   created_at as "createdAt"`,
+-        [
+-          id,
+-          eventType,
+-          orgId ?? null,
+-          agentId ?? null,
+-          userId ?? null,
+-          actorId ?? null,
+-          resource ?? null,
+-          metadata ? JSON.stringify(metadata) : null,
+-        ]
++      const row = await pool.one<AuditRow>(
++        sql`INSERT INTO winamz_audit_logs
++              (id, event_type, org_id, agent_id, user_id, actor_id, resource, metadata)
++            VALUES (
++              ${id}, ${eventType},
++              ${orgId ?? null}, ${agentId ?? null}, ${userId ?? null},
++              ${actorId ?? null}, ${resource ?? null},
++              ${metadata ? JSON.stringify(metadata) : null}
++            )
++            RETURNING ${auditSelectCols}`
+       );
+ 
+       ctx.status = 201;
+-      ctx.body = {
+-        ...row,
+-        createdAt: new Date(row.createdAt as string).toISOString(),
+-      };
+-
++      ctx.body = { ...row, createdAt: new Date(row.createdAt).toISOString() };
+       return next();
+     }
+   );
+diff --git a/packages/core/src/routes/winamz/grants.ts b/packages/core/src/routes/winamz/grants.ts
+index aedbfee91..a6211b029 100644
+--- a/packages/core/src/routes/winamz/grants.ts
++++ b/packages/core/src/routes/winamz/grants.ts
+@@ -7,6 +7,7 @@
+  */
+ 
+ import { generateStandardId } from '@logto/shared';
++import { sql } from '@silverhand/slonik';
+ import { z } from 'zod';
+ 
+ import koaGuard from '#src/middleware/koa-guard.js';
+@@ -26,6 +27,37 @@ const grantResponseGuard = z.object({
+   revokedBy: z.string().nullable().optional(),
+ });
+ 
++type GrantRow = {
++  id: string;
++  agentId: string;
++  userId: string;
++  orgId: string;
++  grantedScopes: string[];
++  grantedAt: Date;
++  expiresAt: Date | null;
++  revokedAt: Date | null;
++  revokedBy: string | null;
++};
++
++const toResponse = (row: GrantRow) => ({
++  ...row,
++  grantedAt: new Date(row.grantedAt).toISOString(),
++  expiresAt: row.expiresAt ? new Date(row.expiresAt).toISOString() : null,
++  revokedAt: row.revokedAt ? new Date(row.revokedAt).toISOString() : null,
++});
++
++const grantSelectCols = sql`
++  id,
++  agent_id as "agentId",
++  user_id as "userId",
++  org_id as "orgId",
++  granted_scopes as "grantedScopes",
++  granted_at as "grantedAt",
++  expires_at as "expiresAt",
++  revoked_at as "revokedAt",
++  revoked_by as "revokedBy"
++`;
++
+ export default function winamzGrantRoutes<T extends ManagementApiRouter>(
+   ...[router, { queries }]: RouterInitArgs<T>
+ ) {
+@@ -42,62 +74,42 @@ export default function winamzGrantRoutes<T extends ManagementApiRouter>(
+         orgId: z.string().optional(),
+         active: z.enum(['true', 'false']).optional(),
+       }),
+-      response: z.object({ total: z.number(), items: grantResponseGuard.array() }),
++      response: grantResponseGuard.array(),
+       status: [200],
+     }),
+     async (ctx, next) => {
+       const { limit, offset } = ctx.pagination;
+       const { agentId, userId, orgId, active } = ctx.guard.query;
+ 
+-      const conditions: string[] = [];
+-      const params: unknown[] = [];
+-
+-      if (agentId) {
+-        params.push(agentId);
+-        conditions.push(`agent_id = $${params.length}`);
+-      }
+-      if (userId) {
+-        params.push(userId);
+-        conditions.push(`user_id = $${params.length}`);
+-      }
+-      if (orgId) {
+-        params.push(orgId);
+-        conditions.push(`org_id = $${params.length}`);
+-      }
+-      if (active === 'true') {
+-        conditions.push(`revoked_at IS NULL AND (expires_at IS NULL OR expires_at > NOW())`);
+-      } else if (active === 'false') {
+-        conditions.push(`(revoked_at IS NOT NULL OR (expires_at IS NOT NULL AND expires_at <= NOW()))`);
+-      }
+-
+-      const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+-
+-      const countResult = await pool.one<{ count: string }>(
+-        `SELECT COUNT(*) as count FROM winamz_agent_grants ${where}`,
+-        params
+-      );
+-
+-      params.push(limit, offset);
+-      const rows = await pool.any(
+-        `SELECT id, agent_id as "agentId", user_id as "userId", org_id as "orgId",
+-                granted_scopes as "grantedScopes", granted_at as "grantedAt",
+-                expires_at as "expiresAt", revoked_at as "revokedAt", revoked_by as "revokedBy"
+-         FROM winamz_agent_grants ${where}
+-         ORDER BY granted_at DESC
+-         LIMIT $${params.length - 1} OFFSET $${params.length}`,
+-        params
+-      );
+-
+-      ctx.body = {
+-        total: Number(countResult.count),
+-        items: rows.map((row) => ({
+-          ...row,
+-          grantedAt: new Date(row.grantedAt as string).toISOString(),
+-          expiresAt: row.expiresAt ? new Date(row.expiresAt as string).toISOString() : null,
+-          revokedAt: row.revokedAt ? new Date(row.revokedAt as string).toISOString() : null,
+-        })),
+-      };
+-
++      const conditions = [
++        agentId && sql`agent_id = ${agentId}`,
++        userId && sql`user_id = ${userId}`,
++        orgId && sql`org_id = ${orgId}`,
++        active === 'true' &&
++          sql`revoked_at IS NULL AND (expires_at IS NULL OR expires_at > NOW())`,
++        active === 'false' &&
++          sql`(revoked_at IS NOT NULL OR (expires_at IS NOT NULL AND expires_at <= NOW()))`,
++      ].filter(Boolean);
++
++      const whereClause =
++        conditions.length > 0
++          ? sql`WHERE ${sql.join(conditions, sql` AND `)}`
++          : sql``;
++
++      const [{ count }, rows] = await Promise.all([
++        pool.one<{ count: string }>(
++          sql`SELECT COUNT(*) as count FROM winamz_agent_grants ${whereClause}`
++        ),
++        pool.any<GrantRow>(
++          sql`SELECT ${grantSelectCols}
++              FROM winamz_agent_grants ${whereClause}
++              ORDER BY granted_at DESC
++              LIMIT ${limit} OFFSET ${offset}`
++        ),
++      ]);
++
++      ctx.pagination.totalCount = Number(count);
++      ctx.body = rows.map(toResponse);
+       return next();
+     }
+   );
+@@ -113,12 +125,8 @@ export default function winamzGrantRoutes<T extends ManagementApiRouter>(
+     async (ctx, next) => {
+       const { id } = ctx.guard.params;
+ 
+-      const row = await pool.maybeOne(
+-        `SELECT id, agent_id as "agentId", user_id as "userId", org_id as "orgId",
+-                granted_scopes as "grantedScopes", granted_at as "grantedAt",
+-                expires_at as "expiresAt", revoked_at as "revokedAt", revoked_by as "revokedBy"
+-         FROM winamz_agent_grants WHERE id = $1`,
+-        [id]
++      const row = await pool.maybeOne<GrantRow>(
++        sql`SELECT ${grantSelectCols} FROM winamz_agent_grants WHERE id = ${id}`
+       );
+ 
+       if (!row) {
+@@ -126,13 +134,7 @@ export default function winamzGrantRoutes<T extends ManagementApiRouter>(
+         return next();
+       }
+ 
+-      ctx.body = {
+-        ...row,
+-        grantedAt: new Date(row.grantedAt as string).toISOString(),
+-        expiresAt: row.expiresAt ? new Date(row.expiresAt as string).toISOString() : null,
+-        revokedAt: row.revokedAt ? new Date(row.revokedAt as string).toISOString() : null,
+-      };
+-
++      ctx.body = toResponse(row);
+       return next();
+     }
+   );
+@@ -155,32 +157,25 @@ export default function winamzGrantRoutes<T extends ManagementApiRouter>(
+       const { agentId, userId, orgId, grantedScopes, expiresAt } = ctx.guard.body;
+       const id = generateStandardId();
+ 
+-      const row = await pool.one(
+-        `INSERT INTO winamz_agent_grants
+-           (id, agent_id, user_id, org_id, granted_scopes, expires_at)
+-         VALUES ($1, $2, $3, $4, $5, $6)
+-         RETURNING id, agent_id as "agentId", user_id as "userId", org_id as "orgId",
+-                   granted_scopes as "grantedScopes", granted_at as "grantedAt",
+-                   expires_at as "expiresAt", revoked_at as "revokedAt", revoked_by as "revokedBy"`,
+-        [id, agentId, userId, orgId, grantedScopes, expiresAt ?? null]
++      const row = await pool.one<GrantRow>(
++        sql`INSERT INTO winamz_agent_grants
++              (id, agent_id, user_id, org_id, granted_scopes, expires_at)
++            VALUES (
++              ${id}, ${agentId}, ${userId}, ${orgId},
++              ${sql.array(grantedScopes, 'text')},
++              ${expiresAt ?? null}
++            )
++            RETURNING ${grantSelectCols}`
+       );
+ 
+-      // Audit log
+       await pool.query(
+-        `INSERT INTO winamz_audit_logs (id, event_type, agent_id, user_id, org_id, created_at)
+-         VALUES ($1, 'grant_created', $2, $3, $4, NOW())`,
+-        [generateStandardId(), agentId, userId, orgId]
++        sql`INSERT INTO winamz_audit_logs
++              (id, event_type, agent_id, user_id, org_id, created_at)
++            VALUES (${generateStandardId()}, 'grant_created', ${agentId}, ${userId}, ${orgId}, NOW())`
+       );
+ 
+       ctx.status = 201;
+-      ctx.body = {
+-        ...row,
+-        grantedAt: new Date(row.grantedAt as string).toISOString(),
+-        expiresAt: row.expiresAt ? new Date(row.expiresAt as string).toISOString() : null,
+-        revokedAt: null,
+-        revokedBy: null,
+-      };
+-
++      ctx.body = toResponse(row);
+       return next();
+     }
+   );
+@@ -206,36 +201,31 @@ export default function winamzGrantRoutes<T extends ManagementApiRouter>(
+       const { revokedBy, reason } = ctx.guard.body;
+       const now = new Date();
+ 
+-      const row = await pool.maybeOne(
+-        `UPDATE winamz_agent_grants
+-         SET revoked_at = $2, revoked_by = $3
+-         WHERE id = $1 AND revoked_at IS NULL
+-         RETURNING id, agent_id as "agentId", user_id as "userId", org_id as "orgId"`,
+-        [id, now, revokedBy ?? null]
++      const row = await pool.maybeOne<{ id: string; agentId: string; userId: string; orgId: string }>(
++        sql`UPDATE winamz_agent_grants
++            SET revoked_at = ${now.toISOString()}, revoked_by = ${revokedBy ?? null}
++            WHERE id = ${id} AND revoked_at IS NULL
++            RETURNING id, agent_id as "agentId", user_id as "userId", org_id as "orgId"`
+       );
+ 
+       if (!row) {
+-        const existing = await pool.maybeOne(
+-          `SELECT id, revoked_at FROM winamz_agent_grants WHERE id = $1`,
+-          [id]
++        const existing = await pool.maybeOne<{ id: string }>(
++          sql`SELECT id FROM winamz_agent_grants WHERE id = ${id}`
+         );
+         ctx.status = existing ? 422 : 404;
+         return next();
+       }
+ 
+-      // Audit log
+       await pool.query(
+-        `INSERT INTO winamz_audit_logs
+-           (id, event_type, agent_id, user_id, org_id, actor_id, metadata, created_at)
+-         VALUES ($1, 'grant_revoked', $2, $3, $4, $5, $6, NOW())`,
+-        [
+-          generateStandardId(),
+-          row.agentId,
+-          row.userId,
+-          row.orgId,
+-          revokedBy ?? null,
+-          reason ? JSON.stringify({ reason }) : null,
+-        ]
++        sql`INSERT INTO winamz_audit_logs
++              (id, event_type, agent_id, user_id, org_id, actor_id, metadata, created_at)
++            VALUES (
++              ${generateStandardId()}, 'grant_revoked',
++              ${row.agentId}, ${row.userId}, ${row.orgId},
++              ${revokedBy ?? null},
++              ${reason ? JSON.stringify({ reason }) : null},
++              NOW()
++            )`
+       );
+ 
+       ctx.body = {
+@@ -243,7 +233,6 @@ export default function winamzGrantRoutes<T extends ManagementApiRouter>(
+         revokedAt: now.toISOString(),
+         ...(reason && { reason }),
+       };
+-
+       return next();
+     }
+   );
+@@ -264,33 +253,30 @@ export default function winamzGrantRoutes<T extends ManagementApiRouter>(
+       const { userId, revokedBy, reason } = ctx.guard.body;
+       const now = new Date();
+ 
+-      const rows = await pool.any(
+-        `UPDATE winamz_agent_grants
+-         SET revoked_at = $2, revoked_by = $3
+-         WHERE user_id = $1 AND revoked_at IS NULL
+-         RETURNING id, agent_id as "agentId", org_id as "orgId"`,
+-        [userId, now, revokedBy ?? null]
++      const rows = await pool.any<{ id: string; agentId: string; orgId: string }>(
++        sql`UPDATE winamz_agent_grants
++            SET revoked_at = ${now.toISOString()}, revoked_by = ${revokedBy ?? null}
++            WHERE user_id = ${userId} AND revoked_at IS NULL
++            RETURNING id, agent_id as "agentId", org_id as "orgId"`
+       );
+ 
+-      // Audit logs for each revoked grant
+-      for (const row of rows) {
+-        await pool.query(
+-          `INSERT INTO winamz_audit_logs
+-             (id, event_type, agent_id, user_id, org_id, actor_id, metadata, created_at)
+-           VALUES ($1, 'grant_revoked', $2, $3, $4, $5, $6, NOW())`,
+-          [
+-            generateStandardId(),
+-            row.agentId,
+-            userId,
+-            row.orgId,
+-            revokedBy ?? null,
+-            reason ? JSON.stringify({ reason, batch: true }) : JSON.stringify({ batch: true }),
+-          ]
+-        );
+-      }
++      await Promise.all(
++        rows.map((row) =>
++          pool.query(
++            sql`INSERT INTO winamz_audit_logs
++                  (id, event_type, agent_id, user_id, org_id, actor_id, metadata, created_at)
++                VALUES (
++                  ${generateStandardId()}, 'grant_revoked',
++                  ${row.agentId}, ${userId}, ${row.orgId},
++                  ${revokedBy ?? null},
++                  ${JSON.stringify({ reason: reason ?? null, batch: true })},
++                  NOW()
++                )`
++          )
++        )
++      );
+ 
+       ctx.body = { revokedCount: rows.length };
+-
+       return next();
+     }
+   );
+diff --git a/packages/schemas/src/migrations/winamz-001-create-tables.ts b/packages/schemas/src/migrations/winamz-001-create-tables.ts
+index 383a848d1..76b71df90 100644
+--- a/packages/schemas/src/migrations/winamz-001-create-tables.ts
++++ b/packages/schemas/src/migrations/winamz-001-create-tables.ts
+@@ -56,6 +56,30 @@ export const up = `
+   CREATE INDEX IF NOT EXISTS winamz_audit_logs_user_id ON winamz_audit_logs (user_id);
+   CREATE INDEX IF NOT EXISTS winamz_audit_logs_org_id ON winamz_audit_logs (org_id);
+   CREATE INDEX IF NOT EXISTS winamz_audit_logs_created_at ON winamz_audit_logs (created_at DESC);
++
++  -- Enable Row-Level Security (required by Logto's startup check)
++  ALTER TABLE winamz_agents ENABLE ROW LEVEL SECURITY;
++  ALTER TABLE winamz_agents FORCE ROW LEVEL SECURITY;
++  CREATE POLICY winamz_agents_tenant ON winamz_agents USING (true);
++
++  ALTER TABLE winamz_agent_grants ENABLE ROW LEVEL SECURITY;
++  ALTER TABLE winamz_agent_grants FORCE ROW LEVEL SECURITY;
++  CREATE POLICY winamz_agent_grants_tenant ON winamz_agent_grants USING (true);
++
++  ALTER TABLE winamz_audit_logs ENABLE ROW LEVEL SECURITY;
++  ALTER TABLE winamz_audit_logs FORCE ROW LEVEL SECURITY;
++  CREATE POLICY winamz_audit_logs_tenant ON winamz_audit_logs USING (true);
++
++  -- Grant permissions to Logto tenant DB users
++  -- Note: DO $$ ... END $$ block used to handle case where roles don't exist yet
++  DO $$
++  BEGIN
++    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'logto_tenant_logto') THEN
++      GRANT SELECT, INSERT, UPDATE, DELETE ON winamz_agents TO logto_tenant_logto;
++      GRANT SELECT, INSERT, UPDATE, DELETE ON winamz_agent_grants TO logto_tenant_logto;
++      GRANT SELECT, INSERT, UPDATE, DELETE ON winamz_audit_logs TO logto_tenant_logto;
++    END IF;
++  END $$;
+ `;
+ 
+ export const down = `
+-- 
+2.50.1 (Apple Git-155)
+

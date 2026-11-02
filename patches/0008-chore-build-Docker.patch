@@ -1,0 +1,26 @@
+From 929f6389d9a20f24250a9022dc086c8902fbae4d Mon Sep 17 00:00:00 2001
+From: root <root@openclaw-wuqing.winamz.com>
+Date: Mon, 13 Apr 2026 07:38:49 +0000
+Subject: [PATCH 08/11] =?UTF-8?q?chore:=20=E5=BF=BD=E7=95=A5=20build/=20Do?=
+ =?UTF-8?q?cker=20=E4=BA=A7=E7=89=A9?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ .gitignore | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/.gitignore b/.gitignore
+index c2209188a..0443f5bbe 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -47,3 +47,5 @@ CLAUDE.md
+ # console auto generated files
+ /packages/console/src/consts/jwt-customizer-type-definition.ts
+ packages/connectors/connector-whatsapp/test-send.mjs
++
++build/
+-- 
+2.50.1 (Apple Git-155)
+

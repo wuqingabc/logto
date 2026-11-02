@@ -1,0 +1,86 @@
+From d6617727beedf98ce574f1c48346d27467eb9712 Mon Sep 17 00:00:00 2001
+From: "wuqingabc@hotmail.com" <wuqingabc@hotmail.com>
+Date: Mon, 12 Oct 2026 18:19:30 +0800
+Subject: [PATCH] fix(winamz): load extension migrations after CLI alteration
+ copy
+
+---
+ ...1789000001-winamz-extend-user-id-length.ts |  9 ++++---
+ .../check-winamz-alteration-packaging.mjs     | 26 +++++++++++++++++++
+ .../schemas/tsconfig.build.alterations.json   |  1 +
+ 3 files changed, 33 insertions(+), 3 deletions(-)
+ create mode 100644 packages/schemas/scripts/check-winamz-alteration-packaging.mjs
+
+diff --git a/packages/schemas/alterations/1.44.0-1789000001-winamz-extend-user-id-length.ts b/packages/schemas/alterations/1.44.0-1789000001-winamz-extend-user-id-length.ts
+index 2c19a4c30..f3cc3348d 100644
+--- a/packages/schemas/alterations/1.44.0-1789000001-winamz-extend-user-id-length.ts
++++ b/packages/schemas/alterations/1.44.0-1789000001-winamz-extend-user-id-length.ts
+@@ -1,7 +1,7 @@
++import { up as createTables } from '@logto/schemas/lib/migrations/winamz-001-create-tables.js';
++import { up as addForeignKeys } from '@logto/schemas/lib/migrations/winamz-002-add-fk-constraints.js';
+ import { sql } from '@silverhand/slonik';
+ 
+-import { up as createTables } from '../lib/migrations/winamz-001-create-tables.js';
+-import { up as addForeignKeys } from '../lib/migrations/winamz-002-add-fk-constraints.js';
+ import type { AlterationScript } from '../lib/types/alteration.js';
+ 
+ const columns = [
+@@ -12,7 +12,10 @@ const columns = [
+   ['winamz_audit_logs', 'actor_id'],
+ ] as const;
+ 
+-/** Extend custom user references after upstream 1.44 widens users.id. */
++/**
++ * Extend custom user references after upstream 1.44 widens users.id.
++ * Runtime imports use package exports because the CLI copies alterations into its own package.
++ */
+ const alteration: AlterationScript = {
+   up: async (pool) => {
+     const { present } = await pool.one<{ present: number }>(sql`
+diff --git a/packages/schemas/scripts/check-winamz-alteration-packaging.mjs b/packages/schemas/scripts/check-winamz-alteration-packaging.mjs
+new file mode 100644
+index 000000000..43ac50694
+--- /dev/null
++++ b/packages/schemas/scripts/check-winamz-alteration-packaging.mjs
+@@ -0,0 +1,26 @@
++import assert from 'node:assert/strict';
++import { basename, dirname } from 'node:path';
++import { test } from 'node:test';
++import { pathToFileURL } from 'node:url';
++
++import {
++  getAlterationFiles,
++  getTimestampFromFilename,
++} from '../../cli/lib/commands/database/alteration/utils.js';
++
++// Run in an isolated build/container: the real CLI refreshes its alteration-scripts directory.
++await test('WinAMZ alteration imports after the CLI copies it and remains resumable', async () => {
++  const files = await getAlterationFiles();
++  const file = files.find(
++    ({ filename }) => filename === '1.44.0-1789000001-winamz-extend-user-id-length.js'
++  );
++  assert.ok(file, 'CLI must discover the custom extension alteration');
++  assert.equal(basename(dirname(file.path)), 'alteration-scripts');
++  assert.ok(
++    getTimestampFromFilename(file.filename) > 1789000000,
++    'The extension alteration must remain after the already-applied upstream watermark'
++  );
++  const { default: alteration } = await import(pathToFileURL(file.path));
++  assert.equal(typeof alteration.up, 'function');
++  assert.equal(typeof alteration.down, 'function');
++});
+diff --git a/packages/schemas/tsconfig.build.alterations.json b/packages/schemas/tsconfig.build.alterations.json
+index 5e7569a34..61acbeb2d 100644
+--- a/packages/schemas/tsconfig.build.alterations.json
++++ b/packages/schemas/tsconfig.build.alterations.json
+@@ -2,6 +2,7 @@
+   "extends": "./tsconfig",
+   "compilerOptions": {
+     "declaration": false,
++    "rootDir": "alterations",
+     "outDir": "alterations-js",
+   },
+   "include": [
+-- 
+2.50.1 (Apple Git-155)
+

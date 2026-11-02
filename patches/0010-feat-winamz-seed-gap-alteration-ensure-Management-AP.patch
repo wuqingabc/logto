@@ -1,0 +1,100 @@
+From 5f9c8fa7b2a7c93a5c6d902b57f04753647b3950 Mon Sep 17 00:00:00 2001
+From: "wuqingabc@hotmail.com" <wuqingabc@hotmail.com>
+Date: Sun, 14 Jun 2026 22:58:33 +0800
+Subject: [PATCH 10/11] =?UTF-8?q?feat(winamz):=20seed-gap=20alteration=20?=
+ =?UTF-8?q?=E2=80=94=20ensure=20Management=20API=20all=20scope=20(fix=20M2?=
+ =?UTF-8?q?M=20403)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ ...-winamz-ensure-management-api-all-scope.ts | 76 +++++++++++++++++++
+ 1 file changed, 76 insertions(+)
+ create mode 100644 packages/schemas/alterations/1.37.1-1781448279-winamz-ensure-management-api-all-scope.ts
+
+diff --git a/packages/schemas/alterations/1.37.1-1781448279-winamz-ensure-management-api-all-scope.ts b/packages/schemas/alterations/1.37.1-1781448279-winamz-ensure-management-api-all-scope.ts
+new file mode 100644
+index 000000000..6fd3adb22
+--- /dev/null
++++ b/packages/schemas/alterations/1.37.1-1781448279-winamz-ensure-management-api-all-scope.ts
+@@ -0,0 +1,76 @@
++import { generateStandardId } from '@logto/shared';
++import { sql } from '@silverhand/slonik';
++
++import type { AlterationScript } from '../lib/types/alteration.js';
++
++/**
++ * WinAMZ: 幂等补全缺失的 Management API `all` scope 及其与
++ * "Logto Management API access" 角色的关联。
++ *
++ * 背景:某 winamz 部署的 logto 实例首次 seed 未跑全 `seedAdminData`,导致
++ * management-api resource(indicator `https://<tenant>.logto.app/api`)上缺
++ * name=`all` 的 scope → M2M app 走 client_credentials 拿到的 token scope=null、
++ * 所有 Management API(/api/users · /api/organizations · /api/connectors ...)403。
++ *
++ * 标准 `pnpm logto db seed` 本会建该 scope(见 packages/schemas/src/seeds/management-api.ts
++ * 与 packages/cli/.../seed/roles.ts:seedPreConfiguredManagementApiAccessRole),
++ * 本 alteration 为「已存在但缺失」的实例幂等补齐(新实例已有则 not-exists 跳过)。
++ *
++ * 详见 winamz-core/docs/superpowers/plans/2026-06-14-im-sso-logto-a2-handoff.md
++ * 与 memory feedback_logto_mgmt_api_all_scope_missing。
++ */
++const alteration: AlterationScript = {
++  up: async (pool) => {
++    // 所有 Management API resource(indicator 形如 https://<tenant>.logto.app/api)
++    // 且其上缺 name='all' scope 的,逐个补 scope + role 关联(覆盖 default / admin tenant)
++    const resources = await pool.any<{ id: string; tenantId: string }>(sql`
++      select r.id, r.tenant_id as "tenantId"
++      from resources r
++      where r.indicator like '%.logto.app/api'
++        and not exists (
++          select 1
++          from scopes s
++          where s.resource_id = r.id
++            and s.tenant_id = r.tenant_id
++            and s.name = 'all'
++        );
++    `);
++
++    for (const { id: resourceId, tenantId } of resources) {
++      const scopeId = generateStandardId();
++      await pool.query(sql`
++        insert into scopes (id, tenant_id, name, description, resource_id)
++        values (
++          ${scopeId},
++          ${tenantId},
++          'all',
++          'Default scope for Management API, allows all permissions.',
++          ${resourceId}
++        );
++      `);
++
++      // 关联到该 tenant 的 "Logto Management API access" 角色(若存在),幂等
++      await pool.query(sql`
++        insert into roles_scopes (id, tenant_id, role_id, scope_id)
++        select ${generateStandardId()}, ${tenantId}, ro.id, ${scopeId}
++        from roles ro
++        where ro.tenant_id = ${tenantId}
++          and ro.name = 'Logto Management API access'
++          and not exists (
++            select 1
++            from roles_scopes rs
++            where rs.role_id = ro.id
++              and rs.scope_id = ${scopeId}
++          );
++      `);
++    }
++  },
++  down: async () => {
++    /**
++     * no-op:本 alteration 仅补全标准 seed 本应建的数据;回退会重新触发
++     * M2M 403,且难以安全区分哪些 all scope 是本脚本所建,故不删。
++     */
++  },
++};
++
++export default alteration;
+-- 
+2.50.1 (Apple Git-155)
+
